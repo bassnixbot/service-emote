@@ -1,0 +1,21 @@
+query QueryEmotes($emotename: String!, $limit: Int) {
+    emotes(query: $emotename, limit: $limit) {
+        count
+        max_page
+        items {
+            id
+            name
+            flags
+            lifecycle
+            tags
+            animated
+            created_at
+            owner_id
+            trending
+            listed
+            channels {
+                total
+            }
+        }
+    }
+}

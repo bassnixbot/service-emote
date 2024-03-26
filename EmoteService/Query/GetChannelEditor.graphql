@@ -1,0 +1,19 @@
+query GetChannelEditors($userid: ObjectID!) {
+    user(id: $userid) {
+        username
+        display_name
+        editors {
+            id
+            permissions
+            visible
+            added_at
+            user {
+                username
+                roles
+                display_name
+            }
+        }
+
+    }
+}
+

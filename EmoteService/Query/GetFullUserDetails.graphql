@@ -1,0 +1,78 @@
+query GetFullUserDetails($userid: ObjectID!) {
+  user(id: $userid) {
+    id
+    username
+    display_name
+    avatar_url
+    biography
+    type
+    roles
+    editor_of {
+      id
+      permissions
+      visible
+      added_at
+      user {
+        id
+        type
+        username
+        display_name
+        created_at
+        avatar_url
+        biography
+        roles
+      }
+    }
+    editors {
+      id
+      permissions
+      visible
+      added_at
+      user {
+        username
+        roles
+        display_name
+      }
+    }
+    emote_sets {
+      id
+      name
+      flags
+      tags
+      emote_count
+      capacity
+      owner_id
+      emotes {
+        id
+        name
+        flags
+        timestamp
+        origin_id
+        data {
+          tags
+        }
+      }
+    }
+    connections(type: TWITCH) {
+      id
+      platform
+      username
+      display_name
+      linked_at
+      emote_capacity
+      emote_set_id
+    }
+    owned_emotes {
+      id
+      name
+      flags
+      lifecycle
+      tags
+      animated
+      created_at
+      owner_id
+      trending
+      listed
+    }
+  }
+}

@@ -1,0 +1,6 @@
+@EmoteService_HostAddress = http://localhost:5146
+
+GET {{EmoteService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

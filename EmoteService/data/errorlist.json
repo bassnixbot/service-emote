@@ -1,0 +1,58 @@
+[
+    {
+        "errorCode": "7001",
+        "errorMessage": "No Server Response"
+    },
+    {
+        "errorCode": "7002",
+        "errorMessage": "User Not Found"
+    },
+    {
+        "errorCode": "7003",
+        "errorMessage": "User haven't linked their twitch account to 7TV yet"
+    },
+    {
+        "errorCode": "7004",
+        "errorMessage": "No emote has been added to this channel yet"
+    },
+    {
+        "errorCode": "7005",
+        "errorMessage": "User doesn't have any owned emote"
+    },
+    {
+        "errorCode": "7006",
+        "errorMessage": "There are no editors added in this channel"
+    },
+    {
+        "errorCode": "7007",
+        "errorMessage": "User dont have any editor access in other channels"
+    },
+    {
+        "errorCode": "7008",
+        "errorMessage": "No emote found"
+    },
+    {
+        "errorCode": "7009",
+        "errorMessage": "Failed to add the following emotes: "
+    },
+    {
+        "errorCode": "7010",
+        "errorMessage": "Please provide at least one emote"
+    },
+    {
+        "errorCode": "7011",
+        "errorMessage": "Please provide only one emote for rename"
+    },
+    {
+        "errorCode": "7012",
+        "errorMessage": "Please put either the emote id or the emote url"
+    },
+    {
+        "errorCode": "7013",
+        "errorMessage": "No Data found"
+    },
+    {
+        "errorCode": "7014",
+        "errorMessage": "Please provide the rename argument"
+    }
+]

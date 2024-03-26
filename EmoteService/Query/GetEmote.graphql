@@ -1,0 +1,14 @@
+query GetEmote($emotelist: [ObjectID!]!) {
+    emotesByID(list: $emotelist) {
+        id
+        name
+        flags
+        lifecycle
+        tags
+        animated
+        owner_id
+        host {
+            url
+        }
+    }
+}

@@ -1,0 +1,18 @@
+query GetEmoteSets($setid: [ObjectID!]!) {
+    emoteSetsByID(list: $setid) {
+        id
+        name
+        flags
+        tags
+        emote_count
+        capacity
+        owner_id
+        emotes {
+            id
+            name
+            flags
+            timestamp
+            origin_id
+        }
+    }
+}
