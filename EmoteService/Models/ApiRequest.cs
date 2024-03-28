@@ -14,5 +14,5 @@ public class ModifyEmoteinEmoteSetRequest
 public class PreviewRequest
 {
     public List<string> targetemotes { get; set; } = new();
-    public string? targetchannel { get; set; }
+    public string? source { get; set; }
 }

@@ -485,3 +485,4 @@ $RECYCLE.BIN/
 
 #appsetting
 appsettings.Development.json
+appsettings.docker.json

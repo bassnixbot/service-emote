@@ -35,7 +35,7 @@ public class EmoteController : ControllerBase
         _errorlist = singletoncontainer.GetErrors();
     }
 
-    [HttpGet("preview")]
+    [HttpPost("preview")]
     public async Task<ActionResult> EmotePreview(PreviewRequest request)
     {
         var response = new ApiResponse<string> { success = false };
@@ -76,12 +76,12 @@ public class EmoteController : ControllerBase
 
         var preview_fuzzy = new List<FailedEmotes>();
 
-        if (request.targetchannel != null && querylist.Count() != 0)
+        if (request.source != null && querylist.Count() != 0)
         {
             var getUserSourceId = await EmoteServices.queryUserId(
                 _client,
                 _redis,
-                request.targetchannel
+                request.source
             );
 
             if (!getUserSourceId.success && getUserSourceId.result == null)
