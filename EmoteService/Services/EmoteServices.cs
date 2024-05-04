@@ -1,6 +1,5 @@
 using EmoteService.GraphQl;
 using EmoteService.Models;
-using EmoteService.Redis;
 using EmoteService.Singleton;
 using MongoDB.Bson;
 
@@ -10,18 +9,18 @@ public static class EmoteServices
 {
     public static async Task<ApiResponse<string>> queryUserId(
         ISevenTvClient client,
-        IRedisCache redis,
         string userquery
     )
     {
         var errorlist = SingletonDataContainer.Instance;
         var rediskey = $"7tv_id_{userquery}";
         var response = new ApiResponse<string> { success = false };
+
         try
         {
-            var userid = await redis.GetOrSetCacheValueAsync<string>(
+            var userid = await RedisLib.RedisClient.GetOrCacheObject<string>(
                 rediskey,
-                async () =>
+                async (cacheparam) =>
                 {
                     var result = await client.QueryUserId.ExecuteAsync(userquery);
 
@@ -40,9 +39,9 @@ public static class EmoteServices
                     if (result.Data.Users[0].Id == ObjectId.Empty.ToString())
                         throw new Exception("7002");
 
-                    return result.Data.Users[0].Id;
-                },
-                TimeSpan.FromDays(1)
+                    cacheparam.expiry = TimeSpan.FromDays(1);
+                    cacheparam.value = result.Data.Users[0].Id;
+                }
             );
 
             response.success = true;
@@ -58,12 +57,7 @@ public static class EmoteServices
 
     public static async Task<
         ApiResponse<List<IGetFullUserDetails_User_Emote_sets_Emotes>?>
-    > getChannelEmotes(
-        ISevenTvClient client,
-        IRedisCache redis,
-        string userid,
-        int timeoutDuration = 10
-    )
+    > getChannelEmotes(ISevenTvClient client, string userid, int timeoutDuration = 10)
     {
         var errorlist = SingletonDataContainer.Instance;
         var response = new ApiResponse<List<IGetFullUserDetails_User_Emote_sets_Emotes>?>
@@ -77,9 +71,9 @@ public static class EmoteServices
         try
         {
             channelEmotes =
-                await redis.GetOrSetCacheValueAsync<List<IGetFullUserDetails_User_Emote_sets_Emotes>?>(
+                await RedisLib.RedisClient.GetOrCacheObject<List<IGetFullUserDetails_User_Emote_sets_Emotes>?>(
                     rediskey,
-                    async () =>
+                    async (cacheparam) =>
                     {
                         var getUserFullInfo = await client.GetFullUserDetails.ExecuteAsync(userid);
 
@@ -121,9 +115,9 @@ public static class EmoteServices
                             throw new Exception("7004");
                         }
 
-                        return emotelist;
-                    },
-                    TimeSpan.FromSeconds(timeoutDuration)
+                        cacheparam.expiry = (TimeSpan.FromSeconds(timeoutDuration));
+                        cacheparam.value = emotelist;
+                    }
                 );
 
             response.success = true;
@@ -139,7 +133,7 @@ public static class EmoteServices
 
     public static async Task<
         ApiResponse<List<IGetFullUserDetails_User_Owned_emotes>?>
-    > getOwnerEmotes(ISevenTvClient client, IRedisCache redis, string userid)
+    > getOwnerEmotes(ISevenTvClient client, string userid)
     {
         var errorlist = SingletonDataContainer.Instance;
         var response = new ApiResponse<List<IGetFullUserDetails_User_Owned_emotes>?>
@@ -153,9 +147,9 @@ public static class EmoteServices
         try
         {
             ownedEmotes =
-                await redis.GetOrSetCacheValueAsync<List<IGetFullUserDetails_User_Owned_emotes>?>(
+                await RedisLib.RedisClient.GetOrCacheObject<List<IGetFullUserDetails_User_Owned_emotes>?>(
                     rediskey,
-                    async () =>
+                    async (cacheparam) =>
                     {
                         var getUserFullInfo = await client.GetFullUserDetails.ExecuteAsync(userid);
 
@@ -176,9 +170,9 @@ public static class EmoteServices
                         if (emotelist == null || emotelist.Count == 0)
                             throw new Exception("7005");
 
-                        return emotelist;
-                    },
-                    TimeSpan.FromHours(1)
+                        cacheparam.expiry = TimeSpan.FromHours(1);
+                        cacheparam.value = emotelist;
+                    }
                 );
 
             response.success = true;
@@ -194,7 +188,6 @@ public static class EmoteServices
 
     public static async Task<ApiResponse<List<string>>> getChannelEditors(
         ISevenTvClient client,
-        IRedisCache redis,
         string userid
     )
     {
@@ -204,9 +197,9 @@ public static class EmoteServices
 
         try
         {
-            var getEditors = await redis.GetOrSetCacheValueAsync<List<string>>(
+            var getEditors = await RedisLib.RedisClient.GetOrCacheObject<List<string>>(
                 cachekey,
-                async () =>
+                async (cacheparam) =>
                 {
                     var userDetail = await client.GetFullUserDetails.ExecuteAsync(userid);
 
@@ -218,9 +211,9 @@ public static class EmoteServices
                     if (editors == null || editors.Count() == 0)
                         throw new Exception("7006");
 
-                    return editors.Select(x => x.User.Username).ToList();
-                },
-                TimeSpan.FromHours(1)
+                    cacheparam.expiry = TimeSpan.FromHours(1);
+                    cacheparam.value = editors.Select(x => x.User.Username).ToList();
+                }
             );
 
             response.success = true;
@@ -236,7 +229,6 @@ public static class EmoteServices
 
     public static async Task<ApiResponse<List<string>>> getUserEditorAccess(
         ISevenTvClient client,
-        IRedisCache redis,
         string userid
     )
     {
@@ -246,9 +238,9 @@ public static class EmoteServices
 
         try
         {
-            var getEditorAccess = await redis.GetOrSetCacheValueAsync<List<string>>(
+            var getEditorAccess = await RedisLib.RedisClient.GetOrCacheObject<List<string>>(
                 cachekey,
-                async () =>
+                async (cacheparam) =>
                 {
                     var userDetail = await client.GetFullUserDetails.ExecuteAsync(userid);
 
@@ -260,9 +252,9 @@ public static class EmoteServices
                     if (editors == null || editors.Count() == 0)
                         throw new Exception("7007");
 
-                    return editors.Select(x => x.User.Display_name.ToLower()).ToList();
-                },
-                TimeSpan.FromHours(1)
+                    cacheparam.expiry = TimeSpan.FromHours(1);
+                    cacheparam.value = editors.Select(x => x.User.Display_name.ToLower()).ToList();
+                }
             );
             response.success = true;
             response.result = getEditorAccess;
@@ -277,7 +269,6 @@ public static class EmoteServices
 
     public static async Task<ApiResponse<string>> getUserActiveEmoteSetId(
         ISevenTvClient client,
-        IRedisCache redis,
         string userid
     )
     {
@@ -287,9 +278,9 @@ public static class EmoteServices
 
         try
         {
-            var getEmoteSetId = await redis.GetOrSetCacheValueAsync<string>(
+            var getEmoteSetId = await RedisLib.RedisClient.GetOrCacheObject<string>(
                 cachekey,
-                async () =>
+                async (cacheparam) =>
                 {
                     var userDetail = await client.GetFullUserDetails.ExecuteAsync(userid);
 
@@ -307,9 +298,9 @@ public static class EmoteServices
                     )
                         throw new Exception("7003");
 
-                    return userconnection[0]!.Emote_set_id!;
-                },
-                TimeSpan.FromHours(1)
+                    cacheparam.expiry = TimeSpan.FromHours(1);
+                    cacheparam.value = userconnection[0]!.Emote_set_id!;
+                }
             );
 
             response.success = true;
@@ -325,7 +316,6 @@ public static class EmoteServices
 
     public static async Task<ApiResponse<IQueryEmotes_Emotes_Items>> searchEmote(
         ISevenTvClient client,
-        IRedisCache redis,
         string emotename
     )
     {
@@ -335,44 +325,43 @@ public static class EmoteServices
 
         try
         {
-            var queryResult = await redis.GetOrSetCacheValueAsync<IQueryEmotes_Emotes_Items?>(
-                cachekey,
-                async () =>
-                {
-                    var queryEmotes = await client.QueryEmotes.ExecuteAsync(emotename, 300);
-
-                    if (queryEmotes == null)
-                        throw new Exception("7001");
-
-                    if (queryEmotes.Errors.Count != 0 && queryEmotes.Errors[0] != null)
-                        throw new Exception(queryEmotes.Errors[0].Message);
-
-                    if (queryEmotes.Data == null)
+            var queryResult =
+                await RedisLib.RedisClient.GetOrCacheObject<IQueryEmotes_Emotes_Items?>(
+                    cachekey,
+                    async (cacheparam) =>
                     {
-                        throw new Exception();
+                        cacheparam.expiry = TimeSpan.FromHours(6);
+                        var queryEmotes = await client.QueryEmotes.ExecuteAsync(emotename, 300);
+
+                        if (queryEmotes == null)
+                            throw new Exception("7001");
+
+                        if (queryEmotes.Errors.Count != 0 && queryEmotes.Errors[0] != null)
+                            throw new Exception(queryEmotes.Errors[0].Message);
+
+                        if (queryEmotes.Data == null)
+                        {
+                            throw new Exception();
+                        }
+
+                        var orderedResult = queryEmotes
+                            .Data.Emotes.Items.Where(x => x != null)
+                            .OrderByDescending(x => x!.Channels.Total)
+                            .ToList();
+
+                        var exactmatch = orderedResult.FirstOrDefault(x => x!.Name == emotename);
+
+                        if (exactmatch != null)
+                            cacheparam.value = exactmatch;
+
+                        var caseInsensitiveMatch = orderedResult.FirstOrDefault(x =>
+                            x!.Name.ToLower() == emotename.ToLower()
+                        );
+
+                        if (caseInsensitiveMatch != null)
+                            cacheparam.value = caseInsensitiveMatch;
                     }
-
-                    var orderedResult = queryEmotes
-                        .Data.Emotes.Items.Where(x => x != null)
-                        .OrderByDescending(x => x!.Channels.Total)
-                        .ToList();
-
-                    var exactmatch = orderedResult.FirstOrDefault(x => x!.Name == emotename);
-
-                    if (exactmatch != null)
-                        return exactmatch;
-
-                    var caseInsensitiveMatch = orderedResult.FirstOrDefault(x =>
-                        x!.Name.ToLower() == emotename.ToLower()
-                    );
-
-                    if (caseInsensitiveMatch != null)
-                        return caseInsensitiveMatch;
-
-                    return null;
-                },
-                TimeSpan.FromHours(6)
-            );
+                );
 
             if (queryResult == null)
             {
@@ -393,7 +382,6 @@ public static class EmoteServices
 
     public static async Task<ApiResponse<IGetEmote_EmotesByID>> getEmote(
         ISevenTvClient client,
-        IRedisCache redis,
         string emoteid
     )
     {
@@ -403,9 +391,9 @@ public static class EmoteServices
 
         try
         {
-            var queryResult = await redis.GetOrSetCacheValueAsync<IGetEmote_EmotesByID>(
+            var queryResult = await RedisLib.RedisClient.GetOrCacheObject<IGetEmote_EmotesByID>(
                 cachekey,
-                async () =>
+                async (cacheparam) =>
                 {
                     var req = new List<string> { emoteid };
                     var queryEmotes = await client.GetEmote.ExecuteAsync(req);
@@ -430,9 +418,9 @@ public static class EmoteServices
                         throw new Exception();
                     }
 
-                    return emoteData;
-                },
-                TimeSpan.FromHours(6)
+                    cacheparam.expiry = TimeSpan.FromHours(6);
+                    cacheparam.value = emoteData;
+                }
             );
 
             if (queryResult == null)
@@ -454,7 +442,6 @@ public static class EmoteServices
 
     public static async Task<ApiResponse<List<IModifyEmote_EmoteSet_Emotes>>> AddEmote(
         ISevenTvClient client,
-        IRedisCache redis,
         string emoteid,
         string emotesetid,
         string emoteRename = ""
@@ -503,7 +490,6 @@ public static class EmoteServices
 
     public static async Task<ApiResponse<List<IModifyEmote_EmoteSet_Emotes>>> RemoveEmote(
         ISevenTvClient client,
-        IRedisCache redis,
         string emoteid,
         string emotesetid
     )

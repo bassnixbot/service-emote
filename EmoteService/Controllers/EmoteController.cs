@@ -1,7 +1,6 @@
 using AutoMapper;
 using EmoteService.GraphQl;
 using EmoteService.Models;
-using EmoteService.Redis;
 using EmoteService.Services;
 using EmoteService.Singleton;
 using FuzzySharp;
@@ -14,21 +13,14 @@ namespace EmoteService.Controllers;
 public class EmoteController : ControllerBase
 {
     private readonly ISevenTvClient _client;
-    private IRedisCache _redis;
     private readonly IMapper _mapper;
     private List<Error> _errorlist;
 
     private readonly ILogger<EmoteController> _logger;
 
-    public EmoteController(
-        ILogger<EmoteController> logger,
-        IRedisCache redis,
-        ISevenTvClient client,
-        IMapper mapper
-    )
+    public EmoteController(ILogger<EmoteController> logger, ISevenTvClient client, IMapper mapper)
     {
         _logger = logger;
-        _redis = redis;
         _client = client;
         _mapper = mapper;
         var singletoncontainer = SingletonDataContainer.Instance;
@@ -59,7 +51,7 @@ public class EmoteController : ControllerBase
         {
             foreach (var emoteid in idlist)
             {
-                var getEmote = await EmoteServices.getEmote(_client, _redis, emoteid.Id.ToString());
+                var getEmote = await EmoteServices.getEmote(_client, emoteid.Id.ToString());
 
                 if (!getEmote.success)
                 {
@@ -78,18 +70,13 @@ public class EmoteController : ControllerBase
 
         if (request.source != null && querylist.Count() != 0)
         {
-            var getUserSourceId = await EmoteServices.queryUserId(
-                _client,
-                _redis,
-                request.source
-            );
+            var getUserSourceId = await EmoteServices.queryUserId(_client, request.source);
 
             if (!getUserSourceId.success && getUserSourceId.result == null)
                 return NotFound(getUserSourceId);
 
             var getUserSourceEmotes = await EmoteServices.getChannelEmotes(
                 _client,
-                _redis,
                 getUserSourceId.result
             );
 
@@ -167,12 +154,12 @@ public class EmoteController : ControllerBase
     [HttpGet("searchemotes")]
     public async Task<ActionResult> SearchEmotes(string channel, string? query, string? tags)
     {
-        var getUserId = await EmoteServices.queryUserId(_client, _redis, channel);
+        var getUserId = await EmoteServices.queryUserId(_client, channel);
 
         if (getUserId.success == false)
             return NotFound(getUserId);
 
-        var emotelist = await EmoteServices.getChannelEmotes(_client, _redis, getUserId.result);
+        var emotelist = await EmoteServices.getChannelEmotes(_client, getUserId.result);
 
         if (!emotelist.success)
             return NotFound(emotelist);
@@ -206,13 +193,13 @@ public class EmoteController : ControllerBase
     public async Task<ActionResult> GetChannelEditors(string user)
     {
         // get user id
-        var getUserId = await EmoteServices.queryUserId(_client, _redis, user);
+        var getUserId = await EmoteServices.queryUserId(_client, user);
 
         if (!getUserId.success)
             return NotFound(getUserId);
 
         // get channel editors
-        var getEditors = await EmoteServices.getChannelEditors(_client, _redis, getUserId.result);
+        var getEditors = await EmoteServices.getChannelEditors(_client, getUserId.result);
 
         if (!getEditors.success)
             return NotFound(getEditors);
@@ -224,13 +211,12 @@ public class EmoteController : ControllerBase
     public async Task<ActionResult> GetUserEditorAccess(string user)
     {
         // get user id
-        var getUserId = await EmoteServices.queryUserId(_client, _redis, user);
+        var getUserId = await EmoteServices.queryUserId(_client, user);
 
         if (!getUserId.success)
             return NotFound(getUserId);
         var getUserEditorAccess = await EmoteServices.getUserEditorAccess(
             _client,
-            _redis,
             getUserId.result
         );
 
@@ -278,18 +264,13 @@ public class EmoteController : ControllerBase
             List<Emotes> sourceEmotes = new();
             if (request.source != null)
             {
-                var getUserSourceId = await EmoteServices.queryUserId(
-                    _client,
-                    _redis,
-                    request.source
-                );
+                var getUserSourceId = await EmoteServices.queryUserId(_client, request.source);
 
                 if (!getUserSourceId.success && getUserSourceId.result == null)
                     return NotFound(getUserSourceId);
 
                 var getUserSourceEmotes = await EmoteServices.getChannelEmotes(
                     _client,
-                    _redis,
                     getUserSourceId.result
                 );
 
@@ -300,7 +281,7 @@ public class EmoteController : ControllerBase
             }
             else if (request.owner != null)
             {
-                var getOwnerId = await EmoteServices.queryUserId(_client, _redis, request.owner);
+                var getOwnerId = await EmoteServices.queryUserId(_client, request.owner);
 
                 if (!getOwnerId.success)
                 {
@@ -308,11 +289,7 @@ public class EmoteController : ControllerBase
                     return NotFound(getOwnerId);
                 }
 
-                var getOwnerEmotes = await EmoteServices.getOwnerEmotes(
-                    _client,
-                    _redis,
-                    getOwnerId.result
-                );
+                var getOwnerEmotes = await EmoteServices.getOwnerEmotes(_client, getOwnerId.result);
 
                 if (!getOwnerEmotes.success)
                 {
@@ -379,7 +356,7 @@ public class EmoteController : ControllerBase
         {
             foreach (var emote in querylist)
             {
-                var searchEmote = await EmoteServices.searchEmote(_client, _redis, emote.Name);
+                var searchEmote = await EmoteServices.searchEmote(_client, emote.Name);
 
                 if (!searchEmote.success)
                 {
@@ -397,18 +374,14 @@ public class EmoteController : ControllerBase
         var targetUserId = "";
         List<Emotes> channelemotes = new();
         {
-            var getUserId = await EmoteServices.queryUserId(_client, _redis, request.targetchannel);
+            var getUserId = await EmoteServices.queryUserId(_client, request.targetchannel);
 
             if (!getUserId.success)
                 return NotFound(getUserId);
 
             targetUserId = getUserId.result;
 
-            var getEmoteSetId = await EmoteServices.getUserActiveEmoteSetId(
-                _client,
-                _redis,
-                targetUserId
-            );
+            var getEmoteSetId = await EmoteServices.getUserActiveEmoteSetId(_client, targetUserId);
 
             if (!getEmoteSetId.success)
                 return NotFound(getEmoteSetId);
@@ -432,7 +405,6 @@ public class EmoteController : ControllerBase
 
                 var addresult = await EmoteServices.AddEmote(
                     _client,
-                    _redis,
                     emote.Id!,
                     targetEmoteSetId!,
                     emote.Rename!
@@ -504,12 +476,12 @@ public class EmoteController : ControllerBase
         );
 
         // get targetchannel user id
-        var getUserId = await EmoteServices.queryUserId(_client, _redis, request.targetchannel);
+        var getUserId = await EmoteServices.queryUserId(_client, request.targetchannel);
 
         if (!getUserId.success)
             return NotFound(getUserId);
 
-        var emotelist = await EmoteServices.getChannelEmotes(_client, _redis, getUserId.result);
+        var emotelist = await EmoteServices.getChannelEmotes(_client, getUserId.result);
 
         if (!emotelist.success)
             return NotFound(emotelist);
@@ -589,11 +561,7 @@ public class EmoteController : ControllerBase
         }
 
         // get activeemotesetid
-        var getEmoteSetId = await EmoteServices.getUserActiveEmoteSetId(
-            _client,
-            _redis,
-            getUserId.result
-        );
+        var getEmoteSetId = await EmoteServices.getUserActiveEmoteSetId(_client, getUserId.result);
 
         if (!getEmoteSetId.success)
             return NotFound(getEmoteSetId);
@@ -607,7 +575,6 @@ public class EmoteController : ControllerBase
             {
                 var removeresult = await EmoteServices.RemoveEmote(
                     _client,
-                    _redis,
                     emote.Id,
                     getEmoteSetId.result
                 );
@@ -664,16 +631,12 @@ public class EmoteController : ControllerBase
         // }
 
         // get the channel's emote
-        var getUserId = await EmoteServices.queryUserId(_client, _redis, request.targetchannel);
+        var getUserId = await EmoteServices.queryUserId(_client, request.targetchannel);
 
         if (!getUserId.success && getUserId.result == null)
             return NotFound(getUserId);
 
-        var getUserSourceEmotes = await EmoteServices.getChannelEmotes(
-            _client,
-            _redis,
-            getUserId.result
-        );
+        var getUserSourceEmotes = await EmoteServices.getChannelEmotes(_client, getUserId.result);
 
         if (!getUserSourceEmotes.success)
             return NotFound(getUserSourceEmotes);
@@ -733,7 +696,6 @@ public class EmoteController : ControllerBase
             // get the channel emote set id
             var getEmoteSetId = await EmoteServices.getUserActiveEmoteSetId(
                 _client,
-                _redis,
                 getUserId.result
             );
 
@@ -743,7 +705,6 @@ public class EmoteController : ControllerBase
             // remove the emote
             var removeresult = await EmoteServices.RemoveEmote(
                 _client,
-                _redis,
                 searchEmote!.Id!,
                 getEmoteSetId.result!
             );
@@ -765,7 +726,6 @@ public class EmoteController : ControllerBase
             // re-add the emote with rename
             var readdresult = await EmoteServices.AddEmote(
                 _client,
-                _redis,
                 searchEmote.Id!,
                 getEmoteSetId.result!,
                 request.emoterename

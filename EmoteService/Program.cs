@@ -1,5 +1,4 @@
 using System.Net.Http.Headers;
-using EmoteService.Redis;
 using EmoteService.Utils;
 using WatchDog;
 
@@ -14,12 +13,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddStackExchangeRedisCache(opt =>
-{
-    opt.Configuration = builder.Configuration.GetConnectionString("RedisConn");
-});
+// configure the related library
+RedisLib.RedisClient.SetupConnection(builder.Configuration.GetConnectionString("RedisConn"));
 
-builder.Services.AddSingleton<IRedisCache, RedisCache>();
 builder.Services.AddAutoMapper(typeof(AutoMapperConfig));
 
 builder
@@ -38,6 +34,7 @@ builder.Services.AddWatchDogServices(opt =>
     opt.SetExternalDbConnString = builder.Configuration.GetConnectionString("DefaultConnection");
     opt.DbDriverOption = WatchDog.src.Enums.WatchDogDbDriverEnum.PostgreSql;
 });
+
 
 var app = builder.Build();
 

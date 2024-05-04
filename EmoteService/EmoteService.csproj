@@ -4,16 +4,15 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- <InvariantGlobalization>true</InvariantGlobalization> -->
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
     <PackageReference Include="FuzzySharp" Version="2.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.2" />
     <PackageReference Include="MongoDB.Driver" Version="2.24.0" />
     <PackageReference Include="newtonsoft.json" Version="13.0.3" />
-    <PackageReference Include="StackExchange.Redis" Version="2.7.20" />
+    <PackageReference Include="RedisLib" Version="1.2.1" />
     <PackageReference Include="StrawberryShake.Server" Version="13.9.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
     <PackageReference Include="WatchDog.NET" Version="1.4.10" />
