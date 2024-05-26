@@ -35,6 +35,7 @@ builder.Services.AddWatchDogServices(opt =>
     opt.DbDriverOption = WatchDog.src.Enums.WatchDogDbDriverEnum.PostgreSql;
 });
 
+builder.Configuration.AddEnvironmentVariables("twitch_");
 
 var app = builder.Build();
 

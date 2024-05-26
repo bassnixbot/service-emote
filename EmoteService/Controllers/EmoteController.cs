@@ -2,9 +2,9 @@ using AutoMapper;
 using EmoteService.GraphQl;
 using EmoteService.Models;
 using EmoteService.Services;
-using EmoteService.Singleton;
 using FuzzySharp;
 using Microsoft.AspNetCore.Mvc;
+using UtilsLib;
 
 namespace EmoteService.Controllers;
 
@@ -14,8 +14,6 @@ public class EmoteController : ControllerBase
 {
     private readonly ISevenTvClient _client;
     private readonly IMapper _mapper;
-    private List<Error> _errorlist;
-
     private readonly ILogger<EmoteController> _logger;
 
     public EmoteController(ILogger<EmoteController> logger, ISevenTvClient client, IMapper mapper)
@@ -23,8 +21,6 @@ public class EmoteController : ControllerBase
         _logger = logger;
         _client = client;
         _mapper = mapper;
-        var singletoncontainer = SingletonDataContainer.Instance;
-        _errorlist = singletoncontainer.GetErrors();
     }
 
     [HttpPost("preview")]
@@ -34,7 +30,7 @@ public class EmoteController : ControllerBase
 
         if (request.targetemotes.Count() == 0)
         {
-            response.error = _errorlist.Where(x => x.errorCode == "7010").Single();
+            response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "EmoteService-7010").Single();
             return BadRequest(response);
         }
 
@@ -234,13 +230,13 @@ public class EmoteController : ControllerBase
         var response = new ApiResponse<string> { success = false };
         if (request.targetemotes.Count() == 0)
         {
-            response.error = _errorlist.Where(x => x.errorCode == "7010").Single();
+            response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "7010").Single();
             return BadRequest(response);
         }
 
         if (request.targetemotes.Count() > 1 && !string.IsNullOrEmpty(request.emoterename))
         {
-            response.error = _errorlist.Where(x => x.errorCode == "7011").Single();
+            response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "EmoteService-7011").Single();
             return BadRequest(response);
         }
 
@@ -465,7 +461,7 @@ public class EmoteController : ControllerBase
 
         if (request.targetemotes.Count() == 0)
         {
-            response.error = _errorlist.Where(x => x.errorCode == "7010").Single();
+            response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "EmoteService-7010").Single();
             return BadRequest(response);
         }
 

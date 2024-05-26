@@ -15,6 +15,7 @@
     <PackageReference Include="RedisLib" Version="1.2.1" />
     <PackageReference Include="StrawberryShake.Server" Version="13.9.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
+    <PackageReference Include="UtilsLib" Version="1.0.4" />
     <PackageReference Include="WatchDog.NET" Version="1.4.10" />
   </ItemGroup>
 

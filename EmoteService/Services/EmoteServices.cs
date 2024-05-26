@@ -1,7 +1,7 @@
 using EmoteService.GraphQl;
 using EmoteService.Models;
-using EmoteService.Singleton;
 using MongoDB.Bson;
+using UtilsLib;
 
 namespace EmoteService.Services;
 
@@ -12,7 +12,6 @@ public static class EmoteServices
         string userquery
     )
     {
-        var errorlist = SingletonDataContainer.Instance;
         var rediskey = $"7tv_id_{userquery}";
         var response = new ApiResponse<string> { success = false };
 
@@ -59,7 +58,6 @@ public static class EmoteServices
         ApiResponse<List<IGetFullUserDetails_User_Emote_sets_Emotes>?>
     > getChannelEmotes(ISevenTvClient client, string userid, int timeoutDuration = 10)
     {
-        var errorlist = SingletonDataContainer.Instance;
         var response = new ApiResponse<List<IGetFullUserDetails_User_Emote_sets_Emotes>?>
         {
             success = false
@@ -135,7 +133,6 @@ public static class EmoteServices
         ApiResponse<List<IGetFullUserDetails_User_Owned_emotes>?>
     > getOwnerEmotes(ISevenTvClient client, string userid)
     {
-        var errorlist = SingletonDataContainer.Instance;
         var response = new ApiResponse<List<IGetFullUserDetails_User_Owned_emotes>?>
         {
             success = false
@@ -191,7 +188,6 @@ public static class EmoteServices
         string userid
     )
     {
-        var errorlist = SingletonDataContainer.Instance;
         var response = new ApiResponse<List<string>> { success = false };
         var cachekey = $"channel_editors_{userid}";
 
@@ -232,7 +228,6 @@ public static class EmoteServices
         string userid
     )
     {
-        var errorlist = SingletonDataContainer.Instance;
         var response = new ApiResponse<List<string>> { success = false };
         var cachekey = $"editor_access_{userid}";
 
@@ -272,7 +267,6 @@ public static class EmoteServices
         string userid
     )
     {
-        var errorlist = SingletonDataContainer.Instance;
         var response = new ApiResponse<string> { success = false };
         var cachekey = $"active_emote_setid_{userid}";
 
@@ -319,7 +313,6 @@ public static class EmoteServices
         string emotename
     )
     {
-        var errorlist = SingletonDataContainer.Instance;
         var response = new ApiResponse<IQueryEmotes_Emotes_Items> { success = false };
         var cachekey = $"emote_search_{emotename}";
 
@@ -365,7 +358,7 @@ public static class EmoteServices
 
             if (queryResult == null)
             {
-                response.error = errorlist.GetErrors().Where(x => x.errorCode == "7008").Single();
+                response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "7008").Single();
                 return response;
             }
 
@@ -385,7 +378,6 @@ public static class EmoteServices
         string emoteid
     )
     {
-        var errorlist = SingletonDataContainer.Instance;
         var response = new ApiResponse<IGetEmote_EmotesByID> { success = false };
         var cachekey = $"emote_get_{emoteid}";
 
@@ -425,7 +417,7 @@ public static class EmoteServices
 
             if (queryResult == null)
             {
-                response.error = errorlist.GetErrors().Where(x => x.errorCode == "7008").Single();
+                response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "7008").Single();
                 return response;
             }
 
@@ -447,7 +439,6 @@ public static class EmoteServices
         string emoteRename = ""
     )
     {
-        var errorlist = SingletonDataContainer.Instance;
         var response = new ApiResponse<List<IModifyEmote_EmoteSet_Emotes>> { success = false };
 
         var addEmote = await client.ModifyEmote.ExecuteAsync(
@@ -459,7 +450,7 @@ public static class EmoteServices
 
         if (addEmote == null || addEmote.Data == null)
         {
-            response.error = errorlist.GetErrors().Where(x => x.errorCode == "7001").Single();
+            response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "7001").Single();
             return response;
         }
 
@@ -494,7 +485,6 @@ public static class EmoteServices
         string emotesetid
     )
     {
-        var errorlist = SingletonDataContainer.Instance;
         var response = new ApiResponse<List<IModifyEmote_EmoteSet_Emotes>> { success = false };
 
         var removeEmote = await client.ModifyEmote.ExecuteAsync(
@@ -506,7 +496,7 @@ public static class EmoteServices
 
         if (removeEmote == null || removeEmote.Data == null)
         {
-            response.error = errorlist.GetErrors().Where(x => x.errorCode == "7001").Single();
+            response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "7001").Single();
             return response;
         }
 
@@ -537,9 +527,8 @@ public static class EmoteServices
 
     private static Error HandleException(System.Exception ex)
     {
-        var errorlist = SingletonDataContainer.Instance;
+        var errorlist = UtilsClient.GetErrorList;
         var errorDetail = errorlist
-            .GetErrors()
             .Where(x => x.errorCode == ex.Message)
             .SingleOrDefault();
 
