@@ -31,13 +31,16 @@ builder
 
 builder.Services.AddWatchDogServices(opt =>
 {
-    opt.SetExternalDbConnString = builder.Configuration.GetConnectionString("DefaultConnection");
+    opt.SetExternalDbConnString = builder.Configuration.GetConnectionString("PostgresEmotes");
     opt.DbDriverOption = WatchDog.src.Enums.WatchDogDbDriverEnum.PostgreSql;
 });
 
 builder.Configuration.AddEnvironmentVariables("twitch_");
 
 var app = builder.Build();
+
+app.Configuration.GetSection("redis").Bind(Config.redis);
+app.Configuration.GetSection("watchdog").Bind(Config.watchdog);
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -57,8 +60,8 @@ app.UseWatchDogExceptionLogger();
 
 app.UseWatchDog(opt =>
 {
-    opt.WatchPagePassword = "admin";
-    opt.WatchPageUsername = "admin";
+    opt.WatchPageUsername = Config.watchdog.username;
+    opt.WatchPagePassword = Config.watchdog.password;
 });
 
 app.Run();

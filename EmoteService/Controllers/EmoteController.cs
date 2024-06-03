@@ -34,7 +34,7 @@ public class EmoteController : ControllerBase
             return BadRequest(response);
         }
 
-        EmoteServices.CheckObjectID(
+        SevenTVServices.CheckObjectID(
             request.targetemotes,
             out List<Emotes> idlist,
             out List<Emotes> querylist
@@ -47,7 +47,7 @@ public class EmoteController : ControllerBase
         {
             foreach (var emoteid in idlist)
             {
-                var getEmote = await EmoteServices.getEmote(_client, emoteid.Id.ToString());
+                var getEmote = await SevenTVServices.getEmote(_client, emoteid.Id.ToString());
 
                 if (!getEmote.success)
                 {
@@ -66,12 +66,12 @@ public class EmoteController : ControllerBase
 
         if (request.source != null && querylist.Count() != 0)
         {
-            var getUserSourceId = await EmoteServices.queryUserId(_client, request.source);
+            var getUserSourceId = await SevenTVServices.queryUserId(_client, request.source);
 
             if (!getUserSourceId.success && getUserSourceId.result == null)
                 return NotFound(getUserSourceId);
 
-            var getUserSourceEmotes = await EmoteServices.getChannelEmotes(
+            var getUserSourceEmotes = await SevenTVServices.getChannelEmotes(
                 _client,
                 getUserSourceId.result
             );
@@ -135,7 +135,7 @@ public class EmoteController : ControllerBase
                 $" | {string.Join(" ", preview_success.Select(x => x.PreviewString()))} | ";
 
         if (preview_failed.Any())
-            actionmessage += $" | {EmoteServices.EmoteErrorBuilder(preview_failed)} | ";
+            actionmessage += $" | {SevenTVServices.EmoteErrorBuilder(preview_failed)} | ";
 
         if (preview_fuzzy.Any())
             actionmessage +=
@@ -150,12 +150,12 @@ public class EmoteController : ControllerBase
     [HttpGet("searchemotes")]
     public async Task<ActionResult> SearchEmotes(string channel, string? query, string? tags)
     {
-        var getUserId = await EmoteServices.queryUserId(_client, channel);
+        var getUserId = await SevenTVServices.queryUserId(_client, channel);
 
         if (getUserId.success == false)
             return NotFound(getUserId);
 
-        var emotelist = await EmoteServices.getChannelEmotes(_client, getUserId.result);
+        var emotelist = await SevenTVServices.getChannelEmotes(_client, getUserId.result);
 
         if (!emotelist.success)
             return NotFound(emotelist);
@@ -189,13 +189,13 @@ public class EmoteController : ControllerBase
     public async Task<ActionResult> GetChannelEditors(string user)
     {
         // get user id
-        var getUserId = await EmoteServices.queryUserId(_client, user);
+        var getUserId = await SevenTVServices.queryUserId(_client, user);
 
         if (!getUserId.success)
             return NotFound(getUserId);
 
         // get channel editors
-        var getEditors = await EmoteServices.getChannelEditors(_client, getUserId.result);
+        var getEditors = await SevenTVServices.getChannelEditors(_client, getUserId.result);
 
         if (!getEditors.success)
             return NotFound(getEditors);
@@ -207,11 +207,11 @@ public class EmoteController : ControllerBase
     public async Task<ActionResult> GetUserEditorAccess(string user)
     {
         // get user id
-        var getUserId = await EmoteServices.queryUserId(_client, user);
+        var getUserId = await SevenTVServices.queryUserId(_client, user);
 
         if (!getUserId.success)
             return NotFound(getUserId);
-        var getUserEditorAccess = await EmoteServices.getUserEditorAccess(
+        var getUserEditorAccess = await SevenTVServices.getUserEditorAccess(
             _client,
             getUserId.result
         );
@@ -241,7 +241,7 @@ public class EmoteController : ControllerBase
         }
 
         // see if the emotes provided already in objectId format
-        EmoteServices.CheckObjectID(
+        SevenTVServices.CheckObjectID(
             request.targetemotes,
             out List<Emotes> idlist,
             out List<Emotes> querylist
@@ -260,12 +260,12 @@ public class EmoteController : ControllerBase
             List<Emotes> sourceEmotes = new();
             if (request.source != null)
             {
-                var getUserSourceId = await EmoteServices.queryUserId(_client, request.source);
+                var getUserSourceId = await SevenTVServices.queryUserId(_client, request.source);
 
                 if (!getUserSourceId.success && getUserSourceId.result == null)
                     return NotFound(getUserSourceId);
 
-                var getUserSourceEmotes = await EmoteServices.getChannelEmotes(
+                var getUserSourceEmotes = await SevenTVServices.getChannelEmotes(
                     _client,
                     getUserSourceId.result
                 );
@@ -277,7 +277,7 @@ public class EmoteController : ControllerBase
             }
             else if (request.owner != null)
             {
-                var getOwnerId = await EmoteServices.queryUserId(_client, request.owner);
+                var getOwnerId = await SevenTVServices.queryUserId(_client, request.owner);
 
                 if (!getOwnerId.success)
                 {
@@ -285,7 +285,7 @@ public class EmoteController : ControllerBase
                     return NotFound(getOwnerId);
                 }
 
-                var getOwnerEmotes = await EmoteServices.getOwnerEmotes(_client, getOwnerId.result);
+                var getOwnerEmotes = await SevenTVServices.getOwnerEmotes(_client, getOwnerId.result);
 
                 if (!getOwnerEmotes.success)
                 {
@@ -352,7 +352,7 @@ public class EmoteController : ControllerBase
         {
             foreach (var emote in querylist)
             {
-                var searchEmote = await EmoteServices.searchEmote(_client, emote.Name);
+                var searchEmote = await SevenTVServices.searchEmote(_client, emote.Name);
 
                 if (!searchEmote.success)
                 {
@@ -370,14 +370,14 @@ public class EmoteController : ControllerBase
         var targetUserId = "";
         List<Emotes> channelemotes = new();
         {
-            var getUserId = await EmoteServices.queryUserId(_client, request.targetchannel);
+            var getUserId = await SevenTVServices.queryUserId(_client, request.targetchannel);
 
             if (!getUserId.success)
                 return NotFound(getUserId);
 
             targetUserId = getUserId.result;
 
-            var getEmoteSetId = await EmoteServices.getUserActiveEmoteSetId(_client, targetUserId);
+            var getEmoteSetId = await SevenTVServices.getUserActiveEmoteSetId(_client, targetUserId);
 
             if (!getEmoteSetId.success)
                 return NotFound(getEmoteSetId);
@@ -399,7 +399,7 @@ public class EmoteController : ControllerBase
                 if (request.defaultname)
                     emote.Rename = "";
 
-                var addresult = await EmoteServices.AddEmote(
+                var addresult = await SevenTVServices.AddEmote(
                     _client,
                     emote.Id!,
                     targetEmoteSetId!,
@@ -433,10 +433,10 @@ public class EmoteController : ControllerBase
 
         if (addEmote_success.Any())
             actionmessage +=
-                $"| Successfully added this emote(s): {EmoteServices.EmoteStringBuilder(addEmote_success)} | ";
+                $"| Successfully added this emote(s): {SevenTVServices.EmoteStringBuilder(addEmote_success)} | ";
 
         if (addEmote_failed.Any())
-            actionmessage += $" | {EmoteServices.EmoteErrorBuilder(addEmote_failed)} | ";
+            actionmessage += $" | {SevenTVServices.EmoteErrorBuilder(addEmote_failed)} | ";
 
         if (emotes_fuzzy.Any())
         {
@@ -446,7 +446,7 @@ public class EmoteController : ControllerBase
 
         if (emotes_failedSearch.Any())
             actionmessage +=
-                $"| Failed to search emote(s): {EmoteServices.EmoteStringBuilder(emotes_failedSearch)} | ";
+                $"| Failed to search emote(s): {SevenTVServices.EmoteStringBuilder(emotes_failedSearch)} | ";
 
         response.success = true;
         response.result = actionmessage;
@@ -465,19 +465,19 @@ public class EmoteController : ControllerBase
             return BadRequest(response);
         }
 
-        EmoteServices.CheckObjectID(
+        SevenTVServices.CheckObjectID(
             request.targetemotes,
             out List<Emotes> idlist,
             out List<Emotes> querylist
         );
 
         // get targetchannel user id
-        var getUserId = await EmoteServices.queryUserId(_client, request.targetchannel);
+        var getUserId = await SevenTVServices.queryUserId(_client, request.targetchannel);
 
         if (!getUserId.success)
             return NotFound(getUserId);
 
-        var emotelist = await EmoteServices.getChannelEmotes(_client, getUserId.result);
+        var emotelist = await SevenTVServices.getChannelEmotes(_client, getUserId.result);
 
         if (!emotelist.success)
             return NotFound(emotelist);
@@ -557,7 +557,7 @@ public class EmoteController : ControllerBase
         }
 
         // get activeemotesetid
-        var getEmoteSetId = await EmoteServices.getUserActiveEmoteSetId(_client, getUserId.result);
+        var getEmoteSetId = await SevenTVServices.getUserActiveEmoteSetId(_client, getUserId.result);
 
         if (!getEmoteSetId.success)
             return NotFound(getEmoteSetId);
@@ -569,7 +569,7 @@ public class EmoteController : ControllerBase
         {
             foreach (var emote in emotes_toRemove)
             {
-                var removeresult = await EmoteServices.RemoveEmote(
+                var removeresult = await SevenTVServices.RemoveEmote(
                     _client,
                     emote.Id,
                     getEmoteSetId.result
@@ -587,10 +587,10 @@ public class EmoteController : ControllerBase
 
         if (emote_removeSuccess.Any())
             actionmessage +=
-                $"| Successfully removed the emote(s): {EmoteServices.EmoteStringBuilder(emote_removeSuccess)} | ";
+                $"| Successfully removed the emote(s): {SevenTVServices.EmoteStringBuilder(emote_removeSuccess)} | ";
 
         if (emote_removeFailed.Any())
-            actionmessage += $" | {EmoteServices.EmoteErrorBuilder(emote_removeFailed)} | ";
+            actionmessage += $" | {SevenTVServices.EmoteErrorBuilder(emote_removeFailed)} | ";
 
         if (emotes_fuzzy.Any())
             actionmessage +=
@@ -598,7 +598,7 @@ public class EmoteController : ControllerBase
 
         if (emotes_notExist.Any())
             actionmessage +=
-                $"| Emote(s) not exist in the channel: {EmoteServices.EmoteStringBuilder(emotes_notExist)} | ";
+                $"| Emote(s) not exist in the channel: {SevenTVServices.EmoteStringBuilder(emotes_notExist)} | ";
 
         response.success = true;
         response.result = actionmessage;
@@ -611,7 +611,7 @@ public class EmoteController : ControllerBase
     {
         var response = new ApiResponse<string>() { success = false };
 
-        EmoteServices.CheckObjectID(
+        SevenTVServices.CheckObjectID(
             request.targetemotes,
             out List<Emotes> idlist,
             out List<Emotes> querylist
@@ -627,12 +627,12 @@ public class EmoteController : ControllerBase
         // }
 
         // get the channel's emote
-        var getUserId = await EmoteServices.queryUserId(_client, request.targetchannel);
+        var getUserId = await SevenTVServices.queryUserId(_client, request.targetchannel);
 
         if (!getUserId.success && getUserId.result == null)
             return NotFound(getUserId);
 
-        var getUserSourceEmotes = await EmoteServices.getChannelEmotes(_client, getUserId.result);
+        var getUserSourceEmotes = await SevenTVServices.getChannelEmotes(_client, getUserId.result);
 
         if (!getUserSourceEmotes.success)
             return NotFound(getUserSourceEmotes);
@@ -690,7 +690,7 @@ public class EmoteController : ControllerBase
             }
 
             // get the channel emote set id
-            var getEmoteSetId = await EmoteServices.getUserActiveEmoteSetId(
+            var getEmoteSetId = await SevenTVServices.getUserActiveEmoteSetId(
                 _client,
                 getUserId.result
             );
@@ -699,7 +699,7 @@ public class EmoteController : ControllerBase
                 return NotFound(getEmoteSetId);
 
             // remove the emote
-            var removeresult = await EmoteServices.RemoveEmote(
+            var removeresult = await SevenTVServices.RemoveEmote(
                 _client,
                 searchEmote!.Id!,
                 getEmoteSetId.result!
@@ -720,7 +720,7 @@ public class EmoteController : ControllerBase
             }
 
             // re-add the emote with rename
-            var readdresult = await EmoteServices.AddEmote(
+            var readdresult = await SevenTVServices.AddEmote(
                 _client,
                 searchEmote.Id!,
                 getEmoteSetId.result!,
@@ -753,7 +753,7 @@ public class EmoteController : ControllerBase
                     $"| Succcessfully rename {request.targetemotes[0]} to {renameEmote_success[0].RenameString()} | ";
 
             if (renameEmote_failed.Any())
-                response.result += $" | {EmoteServices.EmoteErrorBuilder(renameEmote_failed)} | ";
+                response.result += $" | {SevenTVServices.EmoteErrorBuilder(renameEmote_failed)} | ";
 
             if (renameEmote_fuzzy.Any())
                 response.result +=
@@ -761,7 +761,7 @@ public class EmoteController : ControllerBase
 
             if (renameEmote_notFound.Any())
                 response.result +=
-                    $"| Failed to search emotes: {EmoteServices.EmoteStringBuilder(renameEmote_notFound)} | ";
+                    $"| Failed to search emotes: {SevenTVServices.EmoteStringBuilder(renameEmote_notFound)} | ";
         }
 
         response.success = true;

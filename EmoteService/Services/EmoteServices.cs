@@ -1,11 +1,12 @@
 using EmoteService.GraphQl;
 using EmoteService.Models;
+using EmoteService.Utils;
 using MongoDB.Bson;
 using UtilsLib;
 
 namespace EmoteService.Services;
 
-public static class EmoteServices
+public static class SevenTVServices
 {
     public static async Task<ApiResponse<string>> queryUserId(
         ISevenTvClient client,
@@ -38,7 +39,7 @@ public static class EmoteServices
                     if (result.Data.Users[0].Id == ObjectId.Empty.ToString())
                         throw new Exception("7002");
 
-                    cacheparam.expiry = TimeSpan.FromDays(1);
+                    cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
                     cacheparam.value = result.Data.Users[0].Id;
                 }
             );
@@ -56,7 +57,7 @@ public static class EmoteServices
 
     public static async Task<
         ApiResponse<List<IGetFullUserDetails_User_Emote_sets_Emotes>?>
-    > getChannelEmotes(ISevenTvClient client, string userid, int timeoutDuration = 10)
+    > getChannelEmotes(ISevenTvClient client, string userid)
     {
         var response = new ApiResponse<List<IGetFullUserDetails_User_Emote_sets_Emotes>?>
         {
@@ -113,7 +114,7 @@ public static class EmoteServices
                             throw new Exception("7004");
                         }
 
-                        cacheparam.expiry = (TimeSpan.FromSeconds(timeoutDuration));
+                        cacheparam.expiry = (TimeSpan.FromMinutes(Config.redis.shortTimeout));
                         cacheparam.value = emotelist;
                     }
                 );
@@ -167,7 +168,7 @@ public static class EmoteServices
                         if (emotelist == null || emotelist.Count == 0)
                             throw new Exception("7005");
 
-                        cacheparam.expiry = TimeSpan.FromHours(1);
+                        cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
                         cacheparam.value = emotelist;
                     }
                 );
@@ -207,7 +208,7 @@ public static class EmoteServices
                     if (editors == null || editors.Count() == 0)
                         throw new Exception("7006");
 
-                    cacheparam.expiry = TimeSpan.FromHours(1);
+                    cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
                     cacheparam.value = editors.Select(x => x.User.Username).ToList();
                 }
             );
@@ -247,7 +248,7 @@ public static class EmoteServices
                     if (editors == null || editors.Count() == 0)
                         throw new Exception("7007");
 
-                    cacheparam.expiry = TimeSpan.FromHours(1);
+                    cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
                     cacheparam.value = editors.Select(x => x.User.Display_name.ToLower()).ToList();
                 }
             );
@@ -292,7 +293,7 @@ public static class EmoteServices
                     )
                         throw new Exception("7003");
 
-                    cacheparam.expiry = TimeSpan.FromHours(1);
+                    cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
                     cacheparam.value = userconnection[0]!.Emote_set_id!;
                 }
             );
@@ -323,7 +324,7 @@ public static class EmoteServices
                     cachekey,
                     async (cacheparam) =>
                     {
-                        cacheparam.expiry = TimeSpan.FromHours(6);
+                        cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
                         var queryEmotes = await client.QueryEmotes.ExecuteAsync(emotename, 300);
 
                         if (queryEmotes == null)
@@ -410,7 +411,7 @@ public static class EmoteServices
                         throw new Exception();
                     }
 
-                    cacheparam.expiry = TimeSpan.FromHours(6);
+                    cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
                     cacheparam.value = emoteData;
                 }
             );
