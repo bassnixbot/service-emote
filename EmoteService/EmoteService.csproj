@@ -18,5 +18,8 @@
     <PackageReference Include="UtilsLib" Version="1.0.4" />
     <PackageReference Include="WatchDog.NET" Version="1.4.10" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="EmoteService.Tests" />
+  </ItemGroup>
 
 </Project>

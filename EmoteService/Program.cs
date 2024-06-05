@@ -56,12 +56,15 @@ app.UseAuthorization();
 app.MapControllers();
 
 // inject into the middleware
-app.UseWatchDogExceptionLogger();
-
-app.UseWatchDog(opt =>
+if (app.Environment.IsProduction())
 {
-    opt.WatchPageUsername = Config.watchdog.username;
-    opt.WatchPagePassword = Config.watchdog.password;
-});
+    app.UseWatchDogExceptionLogger();
+
+    app.UseWatchDog(opt =>
+    {
+        opt.WatchPageUsername = Config.watchdog.username;
+        opt.WatchPagePassword = Config.watchdog.password;
+    });
+}
 
 app.Run();
