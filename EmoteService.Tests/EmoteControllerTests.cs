@@ -109,101 +109,52 @@ public class EmoteControllerTests
     }
     
     [Fact]
-    public async Task AddEmote_GetAddResponse()
+    public async Task EmoteManipulation_GetAddResponse()
     {
         // Arrange
         var application = new EmoteServiceWebApplicationFactory();
         var targetEmotes = new List<string>() { "shikanokonokonokokoshitantan" };
-        var request = new ModifyEmoteinEmoteSetRequest() { source = "bassnix", targetemotes=targetEmotes, targetchannel = "bassnixbot"};
+        var targetEmotes_remove = new List<string>() { "test" };
+
+        var clientinfo = new ClientInfo() {username = "bassnix", channel = "bassnixbot", message = ""};
+        
+        var request_add = new ModifyEmoteinEmoteSetRequest() { source = "bassnix", targetemotes=targetEmotes, clientinfo = clientinfo};
+        var request_rename = new ModifyEmoteinEmoteSetRequest() { targetemotes=targetEmotes, clientinfo = clientinfo, emoterename = "test"};
+        var request_remove = new ModifyEmoteinEmoteSetRequest() { source = "bassnix", targetemotes=targetEmotes_remove, clientinfo = clientinfo};
 
         var client = application.CreateClient();
 
         // Act
-        var response = await client.PostAsJsonAsync("emotes/add", request);
+        var response_add = await client.PostAsJsonAsync("emotes/add", request_add);
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        var response_rename = await client.PostAsJsonAsync("emotes/rename", request_rename);
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        var response_remove = await client.PostAsJsonAsync("emotes/remove", request_remove);
 
         // Assert
-        response.EnsureSuccessStatusCode();
+        response_add.EnsureSuccessStatusCode();
 
-        var contentResponse = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
-        Assert.Contains(
-            "shikanokonokonokokoshitantan",
-            contentResponse.result
+        var contentResponse_add = await response_add.Content.ReadFromJsonAsync<ApiResponse<string>>();
+        Assert.Equal(
+            "| Successfully added this emote(s): shikanokonokonokokoshitantan | ",
+            contentResponse_add.result
         );
 
-        // remove the emote
-        request.source = null;
-        var removeResponse = await client.PostAsJsonAsync("emotes/remove", request);
+        response_rename.EnsureSuccessStatusCode();
 
-        // Assert
-        response.EnsureSuccessStatusCode();
-
-        var removeContentResponse = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
-        Assert.Contains(
-            "shikanokonokonokokoshitantan",
-            contentResponse.result
-        );
-    }
-    
-    [Fact]
-    public async Task RenameEmote_GetRenameResponse()
-    {
-        // Arrange
-        var application = new EmoteServiceWebApplicationFactory();
-        var targetEmotes = new List<string>() { "catSigh" };
-        var addRequest = new ModifyEmoteinEmoteSetRequest() { source = "bassnix", targetemotes=targetEmotes, targetchannel = "bassnixbot"};
-
-        var client = application.CreateClient();
-
-        // Act
-        var addResponse = await client.PostAsJsonAsync("emotes/add", addRequest);
-
-        // Assert
-        addResponse.EnsureSuccessStatusCode();
-
-        var addContentResponse = await addResponse.Content.ReadFromJsonAsync<ApiResponse<string>>();
-        Assert.Contains(
-            "shikanokonokonokokoshitantan",
-            addContentResponse.result
+        var contentResponse_rename = await response_rename.Content.ReadFromJsonAsync<ApiResponse<string>>();
+        Assert.Equal(
+            "| Succcessfully rename shikanokonokonokokoshitantan to test | ",
+            contentResponse_rename.result
         );
 
-        // Arrange
-        var request = new ModifyEmoteinEmoteSetRequest() { targetemotes=targetEmotes, targetchannel = "bassnixbot", emoterename = "test"};
+        response_remove.EnsureSuccessStatusCode();
 
-        var client = application.CreateClient();
-
-        // Act
-        var response = await client.PostAsJsonAsync("emotes/rename", request);
-
-        // Assert
-        response.EnsureSuccessStatusCode();
-
-        var contentResponse = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
-        Assert.Contains(
-            "test",
-            contentResponse.result
+        var contentResponse_remove= await response_remove.Content.ReadFromJsonAsync<ApiResponse<string>>();
+        Assert.Equal(
+            "| Successfully removed the emote(s): test | ",
+            contentResponse_remove.result
         );
-    }
-
-    [Fact]
-    public async Task RemoveEmote_GetRemoveResponse()
-    {
-        // Arrange
-        var application = new EmoteServiceWebApplicationFactory();
-        var targetEmotes = new List<string>() { "test" };
-        var request = new ModifyEmoteinEmoteSetRequest() { targetemotes=targetEmotes, targetchannel = "bassnixbot"};
-
-        var client = application.CreateClient();
-
-        // Act
-        var response = await client.PostAsJsonAsync("emotes/remove", request);
-
-        // Assert
-        response.EnsureSuccessStatusCode();
-
-        var contentResponse = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
-        Assert.Contains(
-            "test",
-            contentResponse.result
-        );
+        
     }
 }

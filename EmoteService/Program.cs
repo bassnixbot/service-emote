@@ -1,11 +1,20 @@
 using System.Net.Http.Headers;
 using EmoteService.Utils;
 using WatchDog;
+using WatchDog.src.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddEnvironmentVariables("twitch_");
+var test = builder.Configuration.GetConnectionString("PostgresEmotes");
+Console.WriteLine(test);
+
+builder.Services.AddWatchDogServices(opt =>
+{
+    opt.SetExternalDbConnString = builder.Configuration.GetConnectionString("PostgresEmotes");
+    opt.DbDriverOption = WatchDogDbDriverEnum.PostgreSql;
+});
 
 // Add services to the container.
-
 builder.Services.AddControllers();
 
 // Learn more about configuring Swagger/OpenAPI at
@@ -13,10 +22,10 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddAutoMapper(typeof(AutoMapperConfig));
+
 // configure the related library
 RedisLib.RedisClient.SetupConnection(builder.Configuration.GetConnectionString("RedisConn"));
-
-builder.Services.AddAutoMapper(typeof(AutoMapperConfig));
 
 builder
     .Services.AddSevenTvClient()
@@ -29,25 +38,14 @@ builder
         );
     });
 
-builder.Services.AddWatchDogServices(opt =>
-{
-    opt.SetExternalDbConnString = builder.Configuration.GetConnectionString("PostgresEmotes");
-    opt.DbDriverOption = WatchDog.src.Enums.WatchDogDbDriverEnum.PostgreSql;
-});
-
-builder.Configuration.AddEnvironmentVariables("twitch_");
-
 var app = builder.Build();
 
-app.Configuration.GetSection("redis").Bind(Config.redis);
-app.Configuration.GetSection("watchdog").Bind(Config.watchdog);
+app.Configuration.GetSection("redis").Bind(UtilsLib.Config.redis);
+app.Configuration.GetSection("watchdog").Bind(UtilsLib.Config.watchdog);
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
     app.UseSwagger();
     app.UseSwaggerUI();
-}
 
 app.UseHttpsRedirection();
 
@@ -55,16 +53,12 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// inject into the middleware
-if (app.Environment.IsProduction())
-{
-    app.UseWatchDogExceptionLogger();
+app.UseWatchDogExceptionLogger();
 
-    app.UseWatchDog(opt =>
-    {
-        opt.WatchPageUsername = Config.watchdog.username;
-        opt.WatchPagePassword = Config.watchdog.password;
-    });
-}
+app.UseWatchDog(opt =>
+{
+    opt.WatchPageUsername = UtilsLib.Config.watchdog.username;
+    opt.WatchPagePassword = UtilsLib.Config.watchdog.password;
+});
 
 app.Run();

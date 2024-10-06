@@ -1,610 +1,860 @@
-using EmoteService.GraphQl;
 using EmoteService.Models;
-using EmoteService.Utils;
-using MongoDB.Bson;
+using FuzzySharp;
+using Microsoft.AspNetCore.Mvc;
 using UtilsLib;
 
 namespace EmoteService.Services;
 
-public static class SevenTVServices
+public static class EmoteServices
 {
-    public static async Task<ApiResponse<string>> queryUserId(
-        ISevenTvClient client,
-        string userquery
-    )
-    {
-        var rediskey = $"7tv_id_{userquery}";
-        var response = new ApiResponse<string> { success = false };
-
-        try
-        {
-            var userid = await RedisLib.RedisClient.GetOrCacheObject<string>(
-                rediskey,
-                async (cacheparam) =>
-                {
-                    var result = await client.QueryUserId.ExecuteAsync(userquery);
-
-                    if (result == null)
-                        throw new Exception("7001");
-
-                    if (result.Errors.Count() != 0 && result.Errors[0] != null)
-                        throw new Exception(result.Errors[0].Message);
-
-                    if (result.Data == null)
-                        throw new Exception("7013");
-
-                    if (result.Data.Users[0] == null)
-                        throw new Exception("7002");
-
-                    if (result.Data.Users[0].Id == ObjectId.Empty.ToString())
-                        throw new Exception("7002");
-
-                    cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
-                    cacheparam.value = result.Data.Users[0].Id;
-                }
-            );
-
-            response.success = true;
-            response.result = userid;
-            return response;
-        }
-        catch (System.Exception ex)
-        {
-            response.error = HandleException(ex);
-            return response;
-        }
-    }
-
-    public static async Task<
-        ApiResponse<List<IGetFullUserDetails_User_Emote_sets_Emotes>?>
-    > getChannelEmotes(ISevenTvClient client, string userid)
-    {
-        var response = new ApiResponse<List<IGetFullUserDetails_User_Emote_sets_Emotes>?>
-        {
-            success = false
-        };
-
-        var rediskey = $"channel_emotes_{userid}";
-        List<IGetFullUserDetails_User_Emote_sets_Emotes>? channelEmotes = null;
-
-        try
-        {
-            channelEmotes =
-                await RedisLib.RedisClient.GetOrCacheObject<List<IGetFullUserDetails_User_Emote_sets_Emotes>?>(
-                    rediskey,
-                    async (cacheparam) =>
-                    {
-                        var getUserFullInfo = await client.GetFullUserDetails.ExecuteAsync(userid);
-
-                        if (getUserFullInfo == null)
-                            throw new Exception("7001");
-
-                        if (
-                            getUserFullInfo.Errors.Count() != 0
-                            && getUserFullInfo.Errors[0] != null
-                        )
-                            throw new Exception(getUserFullInfo.Errors[0].Message);
-
-                        if (getUserFullInfo.Data == null)
-                            throw new Exception("7002");
-
-                        // we get the active emote sets based on the twitch connection
-                        // it is harcoded to the first item in the array
-                        var userconnection = getUserFullInfo.Data.User.Connections;
-
-                        if (
-                            userconnection == null
-                            || userconnection.Count() == 0
-                            || userconnection[0] == null
-                        )
-                        {
-                            throw new Exception("7003");
-                        }
-
-                        var emotelist = getUserFullInfo
-                            .Data.User.Emote_sets.Where(x =>
-                                x.Id == userconnection[0]!.Emote_set_id
-                            )
-                            .Select(x => x.Emotes)
-                            .Single()
-                            .ToList();
-
-                        if (emotelist == null || emotelist.Count() == 0)
-                        {
-                            throw new Exception("7004");
-                        }
-
-                        cacheparam.expiry = (TimeSpan.FromMinutes(Config.redis.shortTimeout));
-                        cacheparam.value = emotelist;
-                    }
-                );
-
-            response.success = true;
-            response.result = channelEmotes;
-            return response;
-        }
-        catch (System.Exception ex)
-        {
-            response.error = HandleException(ex);
-            return response;
-        }
-    }
-
-    public static async Task<
-        ApiResponse<List<IGetFullUserDetails_User_Owned_emotes>?>
-    > getOwnerEmotes(ISevenTvClient client, string userid)
-    {
-        var response = new ApiResponse<List<IGetFullUserDetails_User_Owned_emotes>?>
-        {
-            success = false
-        };
-
-        var rediskey = $"owner_emotes_{userid}";
-        List<IGetFullUserDetails_User_Owned_emotes>? ownedEmotes = null;
-
-        try
-        {
-            ownedEmotes =
-                await RedisLib.RedisClient.GetOrCacheObject<List<IGetFullUserDetails_User_Owned_emotes>?>(
-                    rediskey,
-                    async (cacheparam) =>
-                    {
-                        var getUserFullInfo = await client.GetFullUserDetails.ExecuteAsync(userid);
-
-                        if (getUserFullInfo == null)
-                            throw new Exception("7001");
-
-                        if (
-                            getUserFullInfo.Errors.Count() != 0
-                            && getUserFullInfo.Errors[0] != null
-                        )
-                            throw new Exception(getUserFullInfo.Errors[0].Message);
-
-                        if (getUserFullInfo.Data == null)
-                            throw new Exception("7002");
-
-                        var emotelist = getUserFullInfo.Data.User.Owned_emotes.ToList();
-
-                        if (emotelist == null || emotelist.Count == 0)
-                            throw new Exception("7005");
-
-                        cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
-                        cacheparam.value = emotelist;
-                    }
-                );
-
-            response.success = true;
-            response.result = ownedEmotes;
-            return response;
-        }
-        catch (System.Exception ex)
-        {
-            response.error = HandleException(ex);
-            return response;
-        }
-    }
-
-    public static async Task<ApiResponse<List<string>>> getChannelEditors(
-        ISevenTvClient client,
-        string userid
-    )
-    {
-        var response = new ApiResponse<List<string>> { success = false };
-        var cachekey = $"channel_editors_{userid}";
-
-        try
-        {
-            var getEditors = await RedisLib.RedisClient.GetOrCacheObject<List<string>>(
-                cachekey,
-                async (cacheparam) =>
-                {
-                    var userDetail = await client.GetFullUserDetails.ExecuteAsync(userid);
-
-                    if (userDetail == null || userDetail.Data == null)
-                        throw new Exception("7002");
-
-                    var editors = userDetail.Data.User.Editors;
-
-                    if (editors == null || editors.Count() == 0)
-                        throw new Exception("7006");
-
-                    cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
-                    cacheparam.value = editors.Select(x => x.User.Username).ToList();
-                }
-            );
-
-            response.success = true;
-            response.result = getEditors;
-            return response;
-        }
-        catch (System.Exception ex)
-        {
-            response.error = HandleException(ex);
-            return response;
-        }
-    }
-
-    public static async Task<ApiResponse<List<string>>> getUserEditorAccess(
-        ISevenTvClient client,
-        string userid
-    )
-    {
-        var response = new ApiResponse<List<string>> { success = false };
-        var cachekey = $"editor_access_{userid}";
-
-        try
-        {
-            var getEditorAccess = await RedisLib.RedisClient.GetOrCacheObject<List<string>>(
-                cachekey,
-                async (cacheparam) =>
-                {
-                    var userDetail = await client.GetFullUserDetails.ExecuteAsync(userid);
-
-                    if (userDetail == null || userDetail.Data == null)
-                        throw new Exception("7002");
-
-                    var editors = userDetail.Data.User.Editor_of;
-
-                    if (editors == null || editors.Count() == 0)
-                        throw new Exception("7007");
-
-                    cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
-                    cacheparam.value = editors.Select(x => x.User.Display_name.ToLower()).ToList();
-                }
-            );
-            response.success = true;
-            response.result = getEditorAccess;
-            return response;
-        }
-        catch (Exception ex)
-        {
-            response.error = HandleException(ex);
-            return response;
-        }
-    }
-
-    public static async Task<ApiResponse<string>> getUserActiveEmoteSetId(
-        ISevenTvClient client,
-        string userid
+    public static async Task<ApiResponse<string>> EmotePreview(
+        PreviewRequest request,
+        ServiceDependency dependency
     )
     {
         var response = new ApiResponse<string> { success = false };
-        var cachekey = $"active_emote_setid_{userid}";
 
-        try
+        if (request.targetemotes.Count() == 0)
         {
-            var getEmoteSetId = await RedisLib.RedisClient.GetOrCacheObject<string>(
-                cachekey,
-                async (cacheparam) =>
-                {
-                    var userDetail = await client.GetFullUserDetails.ExecuteAsync(userid);
-
-                    if (userDetail == null || userDetail.Data == null)
-                        throw new Exception("7002");
-
-                    // we get the active emote sets based on the twitch connection
-                    // it is harcoded to the first item in the array
-                    var userconnection = userDetail.Data.User.Connections;
-
-                    if (
-                        userconnection == null
-                        || userconnection.Count() == 0
-                        || userconnection[0] == null
-                    )
-                        throw new Exception("7003");
-
-                    cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
-                    cacheparam.value = userconnection[0]!.Emote_set_id!;
-                }
-            );
-
-            response.success = true;
-            response.result = getEmoteSetId;
+            response.error = UtilsLib
+                .UtilsClient.GetErrorList.Where(x => x.errorCode == "EmoteService-7010")
+                .Single();
             return response;
         }
-        catch (Exception ex)
-        {
-            response.error = HandleException(ex);
-            return response;
-        }
-    }
 
-    public static async Task<ApiResponse<IQueryEmotes_Emotes_Items>> searchEmote(
-        ISevenTvClient client,
-        string emotename
-    )
-    {
-        var response = new ApiResponse<IQueryEmotes_Emotes_Items> { success = false };
-        var cachekey = $"emote_search_{emotename}";
-
-        try
-        {
-            var queryResult =
-                await RedisLib.RedisClient.GetOrCacheObject<IQueryEmotes_Emotes_Items?>(
-                    cachekey,
-                    async (cacheparam) =>
-                    {
-                        cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
-                        var queryEmotes = await client.QueryEmotes.ExecuteAsync(emotename, 300);
-
-                        if (queryEmotes == null)
-                            throw new Exception("7001");
-
-                        if (queryEmotes.Errors.Count != 0 && queryEmotes.Errors[0] != null)
-                            throw new Exception(queryEmotes.Errors[0].Message);
-
-                        if (queryEmotes.Data == null)
-                        {
-                            throw new Exception();
-                        }
-
-                        var orderedResult = queryEmotes
-                            .Data.Emotes.Items.Where(x => x != null)
-                            .OrderByDescending(x => x!.Channels.Total)
-                            .ToList();
-
-                        var exactmatch = orderedResult.FirstOrDefault(x => x!.Name == emotename);
-
-                        if (exactmatch != null)
-                            cacheparam.value = exactmatch;
-
-                        var caseInsensitiveMatch = orderedResult.FirstOrDefault(x =>
-                            x!.Name.ToLower() == emotename.ToLower()
-                        );
-
-                        if (caseInsensitiveMatch != null)
-                            cacheparam.value = caseInsensitiveMatch;
-                    }
-                );
-
-            if (queryResult == null)
-            {
-                response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "7008").Single();
-                return response;
-            }
-
-            response.success = true;
-            response.result = queryResult;
-            return response;
-        }
-        catch (System.Exception ex)
-        {
-            response.error = HandleException(ex);
-            return response;
-        }
-    }
-
-    public static async Task<ApiResponse<IGetEmote_EmotesByID>> getEmote(
-        ISevenTvClient client,
-        string emoteid
-    )
-    {
-        var response = new ApiResponse<IGetEmote_EmotesByID> { success = false };
-        var cachekey = $"emote_get_{emoteid}";
-
-        try
-        {
-            var queryResult = await RedisLib.RedisClient.GetOrCacheObject<IGetEmote_EmotesByID>(
-                cachekey,
-                async (cacheparam) =>
-                {
-                    var req = new List<string> { emoteid };
-                    var queryEmotes = await client.GetEmote.ExecuteAsync(req);
-
-                    if (queryEmotes == null)
-                        throw new Exception("7001");
-
-                    if (queryEmotes.Errors.Count != 0 && queryEmotes.Errors[0] != null)
-                        throw new Exception(queryEmotes.Errors[0].Message);
-
-                    if (queryEmotes.Data == null)
-                    {
-                        throw new Exception();
-                    }
-
-                    var emoteData = queryEmotes
-                        .Data.EmotesByID.Where(x => x.Id == emoteid)
-                        .SingleOrDefault();
-
-                    if (emoteData == null)
-                    {
-                        throw new Exception();
-                    }
-
-                    cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
-                    cacheparam.value = emoteData;
-                }
-            );
-
-            if (queryResult == null)
-            {
-                response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "7008").Single();
-                return response;
-            }
-
-            response.success = true;
-            response.result = queryResult;
-            return response;
-        }
-        catch (System.Exception ex)
-        {
-            response.error = HandleException(ex);
-            return response;
-        }
-    }
-
-    public static async Task<ApiResponse<List<IModifyEmote_EmoteSet_Emotes>>> AddEmote(
-        ISevenTvClient client,
-        string emoteid,
-        string emotesetid,
-        string emoteRename = ""
-    )
-    {
-        var response = new ApiResponse<List<IModifyEmote_EmoteSet_Emotes>> { success = false };
-
-        var addEmote = await client.ModifyEmote.ExecuteAsync(
-            emotesetid,
-            ListItemAction.Add,
-            emoteid,
-            emoteRename
+        SevenTVServices.CheckObjectID(
+            request.targetemotes,
+            out List<Emotes> idlist,
+            out List<Emotes> querylist
         );
 
-        if (addEmote == null || addEmote.Data == null)
-        {
-            response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "7001").Single();
-            return response;
-        }
+        var preview_success = new List<Emotes>();
+        var preview_failed = new List<Emotes>();
 
-        if (addEmote.Errors.Count != 0 && addEmote.Errors[0] != null)
+        if (idlist.Count() != 0)
         {
-            response.error = new Error
+            foreach (var emoteid in idlist)
             {
-                errorCode = addEmote.Errors[0].Code,
-                errorMessage = addEmote.Errors[0].Message
-            };
+                var getEmote = await SevenTVServices.getEmote(
+                    dependency.client,
+                    emoteid.Id.ToString()
+                );
 
-            return response;
+                if (!getEmote.success)
+                {
+                    emoteid.errorMessage = getEmote!.error!.errorMessage;
+                    preview_failed.Add(emoteid);
+                    continue;
+                }
+
+                var emoteDetails = dependency.mapper.Map<Emotes>(getEmote.result);
+
+                preview_success.Add(emoteDetails);
+            }
         }
 
-        if (addEmote.Data == null || addEmote.Data.EmoteSet == null)
+        var preview_fuzzy = new List<FailedEmotes>();
+
+        if (request.source != null && querylist.Count() != 0)
         {
-            response.error = new Error
+            var getUserSourceId = await SevenTVServices.queryUserId(
+                dependency.client,
+                request.source
+            );
+
+            if (!getUserSourceId.success && getUserSourceId.result == null)
             {
-                errorMessage = "An unexpected error has been occured. Please try again later."
-            };
+                return getUserSourceId;
+            }
+
+            var getUserSourceEmotes = await SevenTVServices.getChannelEmotes(
+                dependency.client,
+                getUserSourceId.result
+            );
+
+            if (!getUserSourceEmotes.success)
+            {
+                response.error = getUserSourceId.error;
+                return response;
+            }
+
+            var sourceEmotes = dependency.mapper.Map<List<Emotes>>(getUserSourceEmotes.result);
+
+            var findEmotes = (
+                from queries in querylist
+                join emotesdict in sourceEmotes on queries.Name equals emotesdict.Name
+                select new Emotes
+                {
+                    Name = emotesdict.Name,
+                    Id = emotesdict.Id,
+                    Rename = queries.Name
+                }
+            ).ToList();
+
+            preview_success.AddRange(findEmotes);
+
+            var emotes_notExactMatch = querylist
+                .Select(x => x.Name)
+                .Except(findEmotes.Select(x => x.Name))
+                .Select(x => new Emotes { Name = x, errorMessage = "Emote Not Found" })
+                .ToList();
+
+            // serach for the nearest match for not exact match emotes
+            var emoteNames = sourceEmotes.Select(x => x.Name).ToList();
+            foreach (var emote in emotes_notExactMatch)
+            {
+                var fuzzyResult = Process.ExtractTop(emote.Name, emoteNames, cutoff: 70);
+
+                if (!fuzzyResult.Any())
+                    continue;
+
+                preview_fuzzy.Add(
+                    new FailedEmotes
+                    {
+                        Name = emote.Name,
+                        Fuzzy = fuzzyResult.First().Value,
+                        Score = fuzzyResult.First().Score
+                    }
+                );
+            }
+
+            // get the list of not found emotes
+            var preview_notFound = emotes_notExactMatch
+                .Select(x => x.Name)
+                .Except(preview_fuzzy.Select(x => x.Name))
+                .Select(x => new Emotes { Name = x })
+                .ToList();
+
+            preview_failed.AddRange(preview_notFound);
+        }
+
+        string actionmessage = "";
+        if (preview_success.Any())
+            actionmessage +=
+                $" | {string.Join(" ", preview_success.Select(x => x.PreviewString()))} | ";
+
+        if (preview_failed.Any())
+            actionmessage += $" | {SevenTVServices.EmoteErrorBuilder(preview_failed)} | ";
+
+        if (preview_fuzzy.Any())
+            actionmessage +=
+                $" | Not found the emote(s). Did you mean : {string.Join(" ; ", preview_fuzzy.Select(x => x.ToString()).ToList())} | ";
+
+        response.success = true;
+        response.result = actionmessage;
+
+        return response;
+    }
+
+    [HttpGet("searchemotes")]
+    public static async Task<ApiResponse<List<string>>> SearchEmotes(
+        string channel,
+        string? query,
+        string? tags,
+        ServiceDependency dependency
+    )
+    {
+        var response = new ApiResponse<List<string>>() { success = false };
+        var getUserId = await SevenTVServices.queryUserId(dependency.client, channel);
+
+        if (getUserId.success == false)
+        {
+            response.error = getUserId.error;
             return response;
         }
 
-        response.result = addEmote.Data.EmoteSet.Emotes.ToList();
+        var emotelist = await SevenTVServices.getChannelEmotes(dependency.client, getUserId.result);
+
+        if (!emotelist.success)
+        {
+            response.error = emotelist.error;
+            return response;
+        }
+
+        List<string> emotes = new();
+        if (!string.IsNullOrEmpty(tags))
+        {
+            emotes = emotelist
+                .result.Where(x => x.Data.Tags.Any(tag => tag.ToLower().Contains(tags.ToLower())))
+                .Select(x => x.Name)
+                .ToList();
+            return new ApiResponse<List<string>> { success = true, result = emotes };
+        }
+
+        if (!string.IsNullOrEmpty(query))
+        {
+            emotes = emotelist
+                .result.Where(x => x.Name.ToLower().Contains(query.ToLower() ?? ""))
+                .OrderBy(x => x.Name)
+                .Select(x => x.Name)
+                .ToList();
+            return new ApiResponse<List<string>> { success = true, result = emotes };
+        }
+
+        // default fallback
+        emotes = emotelist.result.Select(x => x.Name).ToList();
+        return new ApiResponse<List<string>> { success = true, result = emotes };
+    }
+
+    public static async Task<ApiResponse<List<string>>> GetChannelEditors(
+        string user,
+        ServiceDependency dependency
+    )
+    {
+        var response = new ApiResponse<List<string>>() { success = false };
+        // get user id
+        var getUserId = await SevenTVServices.queryUserId(dependency.client, user);
+
+        if (!getUserId.success)
+        {
+            response.error = getUserId.error;
+            return response;
+        }
+
+        // get channel editors
+        var getEditors = await SevenTVServices.getChannelEditors(
+            dependency.client,
+            getUserId.result
+        );
+        return getEditors;
+    }
+
+    public static async Task<ApiResponse<List<string>>> GetUserEditorAccess(
+        string user,
+        ServiceDependency dependency
+    )
+    {
+        var response = new ApiResponse<List<string>>() { success = false };
+
+        // get user id
+        var getUserId = await SevenTVServices.queryUserId(dependency.client, user);
+
+        if (!getUserId.success)
+        {
+            response.error = getUserId.error;
+            return response;
+        }
+        
+        var getUserEditorAccess = await SevenTVServices.getUserEditorAccess(
+            dependency.client,
+            getUserId.result
+        );
+
+        if (!getUserEditorAccess.success)
+        {
+            return getUserEditorAccess;
+        }
+
+        return getUserEditorAccess;
+    }
+
+    [HttpPost("add")]
+    public static async Task<ApiResponse<string>> AddEmoteinEmoteSet(
+        ModifyEmoteinEmoteSetRequest request,
+        ServiceDependency dependency
+    )
+    {
+        var response = new ApiResponse<string> { success = false };
+        if (request.targetemotes.Count() == 0)
+        {
+            response.error = UtilsLib
+                .UtilsClient.GetErrorList.Where(x => x.errorCode == "7010")
+                .Single();
+            return response;
+        }
+
+        if (request.targetemotes.Count() > 1 && !string.IsNullOrEmpty(request.emoterename))
+        {
+            response.error = UtilsLib
+                .UtilsClient.GetErrorList.Where(x => x.errorCode == "EmoteService-7011")
+                .Single();
+            return response;
+        }
+
+        // see if the emotes provided already in objectId format
+        SevenTVServices.CheckObjectID(
+            request.targetemotes,
+            out List<Emotes> idlist,
+            out List<Emotes> querylist
+        );
+
+        List<Emotes> emotes_toAdd = new();
+        List<FailedEmotes> emotes_fuzzy = new();
+        List<Emotes> emotes_failedSearch = new();
+
+        // added id directly into the list since we need to use the id during add query
+        emotes_toAdd.AddRange(idlist);
+
+        // search the emotes
+        if (request.source != null || request.owner != null)
+        {
+            List<Emotes> sourceEmotes = new();
+            if (request.source != null)
+            {
+                var getUserSourceId = await SevenTVServices.queryUserId(dependency.client, request.source);
+
+                if (!getUserSourceId.success && getUserSourceId.result == null)
+                    return getUserSourceId;
+
+                var getUserSourceEmotes = await SevenTVServices.getChannelEmotes(
+                    dependency.client,
+                    getUserSourceId.result
+                );
+
+                if (!getUserSourceEmotes.success) {
+                    response.error = getUserSourceEmotes.error;
+                    return response;
+                }
+
+                sourceEmotes = dependency.mapper.Map<List<Emotes>>(getUserSourceEmotes.result);
+            }
+            else if (request.owner != null)
+            {
+                var getOwnerId = await SevenTVServices.queryUserId(dependency.client, request.owner);
+
+                if (!getOwnerId.success)
+                {
+                    getOwnerId.error.errorMessage = "Please provide a valid owner username";
+                    return getOwnerId;
+                }
+
+                var getOwnerEmotes = await SevenTVServices.getOwnerEmotes(
+                    dependency.client,
+                    getOwnerId.result
+                );
+
+                if (!getOwnerEmotes.success)
+                {
+                    response.error = getOwnerEmotes.error;
+                    return response;
+                }
+
+                sourceEmotes = dependency.mapper.Map<List<Emotes>>(getOwnerEmotes.result);
+            }
+
+            var findEmotes = (
+                from queries in querylist
+                join emotesdict in sourceEmotes on queries.Name equals emotesdict.Name
+                select new Emotes
+                {
+                    Name = emotesdict.Name,
+                    Id = emotesdict.Id,
+                    Rename = queries.Name
+                }
+            ).ToList();
+
+            emotes_toAdd.AddRange(findEmotes);
+
+            var emotes_notExactMatch = querylist
+                .Select(x => x.Name)
+                .Except(findEmotes.Select(x => x.Name))
+                .Select(x => new Emotes { Name = x })
+                .ToList();
+
+            // search for the nearest match for not exact match emotes
+            var emoteNames = sourceEmotes.Select(x => x.Name).ToList();
+            var fuzzyEmotes = new List<FailedEmotes>();
+
+            foreach (var emote in emotes_notExactMatch)
+            {
+                var fuzzyResult = Process.ExtractTop(emote.Name, emoteNames, cutoff: 70);
+
+                if (!fuzzyResult.Any())
+                {
+                    continue;
+                }
+
+                fuzzyEmotes.Add(
+                    new FailedEmotes
+                    {
+                        Name = emote.Name,
+                        Fuzzy = fuzzyResult.First().Value,
+                        Score = fuzzyResult.First().Score
+                    }
+                );
+            }
+
+            emotes_fuzzy.AddRange(fuzzyEmotes);
+
+            // get the list of not found emotes
+            var emotes_notFound = emotes_notExactMatch
+                .Select(x => x.Name)
+                .Except(fuzzyEmotes.Select(x => x.Name))
+                .Select(x => new Emotes { Name = x })
+                .ToList();
+
+            emotes_failedSearch.AddRange(emotes_notFound);
+        }
+        else
+        {
+            foreach (var emote in querylist)
+            {
+                var searchEmote = await SevenTVServices.searchEmote(dependency.client, emote.Name);
+
+                if (!searchEmote.success)
+                {
+                    emotes_failedSearch.Add(emote);
+                    continue;
+                }
+
+                var emoteAM = dependency.mapper.Map<Emotes>(searchEmote.result);
+                emotes_toAdd.Add(emoteAM);
+            }
+        }
+
+        // get target channel info
+        var targetEmoteSetId = "";
+        var targetUserId = "";
+        List<Emotes> channelemotes = new();
+        {
+            var getUserId = await SevenTVServices.queryUserId(dependency.client, request.clientinfo.channel);
+
+            if (!getUserId.success)
+                return getUserId;
+
+            targetUserId = getUserId.result;
+
+            var getEmoteSetId = await SevenTVServices.getUserActiveEmoteSetId(
+                dependency.client,
+                targetUserId
+            );
+
+            if (!getEmoteSetId.success)
+                return getEmoteSetId;
+
+            targetEmoteSetId = getEmoteSetId.result;
+        }
+
+        // add the emotes
+        var addEmote_failed = new List<Emotes>();
+        var addEmote_success = new List<Emotes>();
+
+        if (emotes_toAdd.Count() > 0)
+        {
+            foreach (var emote in emotes_toAdd)
+            {
+                if (!string.IsNullOrEmpty(request.emoterename))
+                    emote.Rename = request.emoterename;
+
+                if (request.defaultname)
+                    emote.Rename = "";
+
+                var addresult = await SevenTVServices.AddEmote(
+                    dependency.client,
+                    emote.Id!,
+                    targetEmoteSetId!,
+                    emote.Rename!
+                );
+
+                if (!addresult.success)
+                {
+                    emote.errorMessage = addresult.error.errorMessage;
+                    addEmote_failed.Add(emote);
+                    continue;
+                }
+
+                var resultlist = dependency.mapper.Map<List<Emotes>>(addresult.result);
+
+                var addedEmote = resultlist.Where(x => x.Id == emote.Id).SingleOrDefault();
+
+                if (addedEmote == null)
+                {
+                    addEmote_success.Add(emote);
+                    continue;
+                }
+
+                addedEmote.Rename = emote.Rename;
+                addEmote_success.Add(addedEmote);
+            }
+        }
+
+        // give info if some emotes are not found or failed to add
+        string actionmessage = "";
+
+        if (addEmote_success.Any())
+            actionmessage +=
+                $"| Successfully added this emote(s): {SevenTVServices.EmoteStringBuilder(addEmote_success)} | ";
+
+        if (addEmote_failed.Any())
+            actionmessage += $" | {SevenTVServices.EmoteErrorBuilder(addEmote_failed)} | ";
+
+        if (emotes_fuzzy.Any())
+        {
+            actionmessage +=
+                $" | Not found the emote(s). Did you mean : {string.Join(" ; ", emotes_fuzzy.Select(x => x.ToString()).ToList())} | ";
+        }
+
+        if (emotes_failedSearch.Any())
+            actionmessage +=
+                $"| Failed to search emote(s): {SevenTVServices.EmoteStringBuilder(emotes_failedSearch)} | ";
+
+        response.success = true;
+        response.result = actionmessage;
+
+        return response;
+    }
+
+    public static async Task<ApiResponse<string>> RemoveEmoteFromEmoteSet(
+        ModifyEmoteinEmoteSetRequest request,
+        ServiceDependency dependency
+    )
+    {
+        var response = new ApiResponse<string>() { success = false };
+
+        if (request.targetemotes.Count() == 0)
+        {
+            response.error = UtilsLib
+                .UtilsClient.GetErrorList.Where(x => x.errorCode == "EmoteService-7010")
+                .Single();
+            return response;
+        }
+
+        SevenTVServices.CheckObjectID(
+            request.targetemotes,
+            out List<Emotes> idlist,
+            out List<Emotes> querylist
+        );
+
+        // get targetchannel user id
+        var getUserId = await SevenTVServices.queryUserId(dependency.client, request.clientinfo.channel);
+
+        if (!getUserId.success)
+            return getUserId;
+
+        var emotelist = await SevenTVServices.getChannelEmotes(dependency.client, getUserId.result);
+
+        if (!emotelist.success) {
+            response.error = emotelist.error;
+            return response;
+        }
+
+        var sourceEmotes = dependency.mapper.Map<List<Emotes>>(emotelist.result);
+
+        List<Emotes> emotes_toRemove = new();
+        List<Emotes> emotes_notExist = new();
+        List<FailedEmotes> emotes_fuzzy = new();
+
+        emotes_toRemove.AddRange(idlist);
+
+        // see if the target emotes exist in emoteset
+        if (idlist.Count() != 0)
+        {
+            var findEmotes = (
+                from emotes in sourceEmotes
+                join ids in idlist on emotes.Id equals ids.ToString()
+                select emotes
+            ).ToList();
+
+            emotes_toRemove.AddRange(findEmotes);
+
+            var emotesNotFound = idlist
+                .Select(x => x.Id)
+                .Except(findEmotes.Select(x => x.Id))
+                .Select(x => new Emotes { Id = x })
+                .ToList();
+
+            emotes_notExist.AddRange(emotesNotFound);
+        }
+
+        if (querylist.Count() != 0)
+        {
+            var findEmotes = (
+                from emotes in sourceEmotes
+                join queries in querylist on emotes.Name equals queries.Name
+                select emotes
+            ).ToList();
+
+            emotes_toRemove.AddRange(findEmotes);
+
+            var emotes_NotExactMatch = querylist
+                .Select(x => x.Name)
+                .Except(findEmotes.Select(x => x.Name))
+                .Select(x => new Emotes { Name = x })
+                .ToList();
+
+            // search for the nearest match for not exact match emotes
+            var emoteNames = sourceEmotes.Select(x => x.Name).ToList();
+
+            foreach (var emote in emotes_NotExactMatch)
+            {
+                var fuzzyResult = Process.ExtractTop(emote.Name, emoteNames, cutoff: 70);
+
+                if (!fuzzyResult.Any())
+                    continue;
+
+                emotes_fuzzy.Add(
+                    new FailedEmotes
+                    {
+                        Name = emote.Name,
+                        Fuzzy = fuzzyResult.First().Value,
+                        Score = fuzzyResult.First().Score
+                    }
+                );
+            }
+
+            // get the list of not found emote
+            var notFoundEmote = emotes_NotExactMatch
+                .Select(x => x.Name)
+                .Except(emotes_fuzzy.Select(x => x.Name))
+                .Select(x => new Emotes { Name = x })
+                .ToList();
+
+            emotes_notExist.AddRange(notFoundEmote);
+        }
+
+        // get activeemotesetid
+        var getEmoteSetId = await SevenTVServices.getUserActiveEmoteSetId(
+            dependency.client,
+            getUserId.result
+        );
+
+        if (!getEmoteSetId.success)
+            return getEmoteSetId;
+
+        // remove emotes
+        var emote_removeFailed = new List<Emotes>();
+        var emote_removeSuccess = new List<Emotes>();
+        if (emotes_toRemove.Count > 0)
+        {
+            foreach (var emote in emotes_toRemove)
+            {
+                var removeresult = await SevenTVServices.RemoveEmote(
+                    dependency.client,
+                    emote.Id,
+                    getEmoteSetId.result
+                );
+
+                if (!removeresult.success)
+                    emote_removeFailed.Add(emote);
+                else
+                    emote_removeSuccess.Add(emote);
+            }
+        }
+
+        // give info if some emotes are not found or failed to add
+        string actionmessage = "";
+
+        if (emote_removeSuccess.Any())
+            actionmessage +=
+                $"| Successfully removed the emote(s): {SevenTVServices.EmoteStringBuilder(emote_removeSuccess)} | ";
+
+        if (emote_removeFailed.Any())
+            actionmessage += $" | {SevenTVServices.EmoteErrorBuilder(emote_removeFailed)} | ";
+
+        if (emotes_fuzzy.Any())
+            actionmessage +=
+                $" | Not found the emote(s). Did you mean : {string.Join(" ; ", emotes_fuzzy.Select(x => x.ToString()).ToList())} | ";
+
+        if (emotes_notExist.Any())
+            actionmessage +=
+                $"| Emote(s) not exist in the channel: {SevenTVServices.EmoteStringBuilder(emotes_notExist)} | ";
+
+        response.success = true;
+        response.result = actionmessage;
+
+        return response;
+    }
+
+    [HttpPost("rename")]
+    public static async Task<ApiResponse<string>> RenameEmoteFromEmoteSet(
+        ModifyEmoteinEmoteSetRequest request,
+        ServiceDependency dependency
+    )
+    {
+        var response = new ApiResponse<string>() { success = false };
+
+        SevenTVServices.CheckObjectID(
+            request.targetemotes,
+            out List<Emotes> idlist,
+            out List<Emotes> querylist
+        );
+
+        // will only take 1 emote rename for now
+        var targetemote = request.targetemotes[0];
+
+        // if (string.IsNullOrEmpty(request.emoterename))
+        // {
+        //     response.error = _errorlist.Where(x => x.errorCode == "7014").Single();
+        //     return BadRequest(response);
+        // }
+
+        // get the channel's emote
+        var getUserId = await SevenTVServices.queryUserId(dependency.client, request.clientinfo.channel);
+
+        if (!getUserId.success && getUserId.result == null)
+            return getUserId;
+
+        var getUserSourceEmotes = await SevenTVServices.getChannelEmotes(dependency.client, getUserId.result);
+
+        if (!getUserSourceEmotes.success) {
+            response.error = getUserSourceEmotes.error;
+            return response;
+        }
+
+        var sourceEmotes = dependency.mapper.Map<List<Emotes>>(getUserSourceEmotes.result);
+
+        var renameEmote_failed = new List<Emotes>();
+        var renameEmote_success = new List<Emotes>();
+        var renameEmote_notFound = new List<Emotes>();
+        var renameEmote_fuzzy = new List<FailedEmotes>();
+
+        try
+        {
+            // search the emote
+            Emotes? searchEmote = null;
+
+            if (idlist.Count != 0 && querylist.Count() == 0)
+            {
+                searchEmote = sourceEmotes.Where(x => x.Id == idlist[0].Id).SingleOrDefault();
+            }
+            else
+            {
+                searchEmote = sourceEmotes
+                    .Where(x => x.Name == querylist[0].Name)
+                    .SingleOrDefault();
+            }
+
+            if (searchEmote == null)
+            {
+                if (querylist.Any())
+                {
+                    var emoteNames = sourceEmotes.Select(x => x.Name).ToList();
+                    var fuzzyResult = Process.ExtractTop(querylist[0].Name, emoteNames, cutoff: 70);
+
+                    if (!fuzzyResult.Any())
+                    {
+                        renameEmote_notFound.Add(new Emotes() { Name = request.targetemotes[0] });
+                        throw new Exception();
+                    }
+
+                    renameEmote_fuzzy.Add(
+                        new FailedEmotes
+                        {
+                            Name = querylist[0].Name,
+                            Fuzzy = fuzzyResult.First().Value,
+                            Score = fuzzyResult.First().Score
+                        }
+                    );
+                }
+
+                if (idlist.Any())
+                    renameEmote_notFound.Add(new Emotes() { Name = request.targetemotes[0] });
+
+                throw new Exception();
+            }
+
+            // get the channel emote set id
+            var getEmoteSetId = await SevenTVServices.getUserActiveEmoteSetId(
+                dependency.client,
+                getUserId.result
+            );
+
+            if (!getEmoteSetId.success)
+                return getEmoteSetId;
+
+            // remove the emote
+            var removeresult = await SevenTVServices.RemoveEmote(
+                dependency.client,
+                searchEmote!.Id!,
+                getEmoteSetId.result!
+            );
+
+            if (!removeresult.success)
+            {
+                renameEmote_failed.Add(
+                    new Emotes()
+                    {
+                        Name = request.targetemotes[0],
+                        Rename = request.emoterename,
+                        errorMessage = removeresult.error.errorMessage
+                    }
+                );
+
+                throw new Exception(removeresult.error.errorMessage);
+            }
+
+            // re-add the emote with rename
+            var readdresult = await SevenTVServices.AddEmote(
+                dependency.client,
+                searchEmote.Id!,
+                getEmoteSetId.result!,
+                request.emoterename
+            );
+
+            if (!readdresult.success)
+            {
+                renameEmote_failed.Add(
+                    new Emotes()
+                    {
+                        Name = request.targetemotes[0],
+                        Rename = request.emoterename,
+                        errorMessage = removeresult.error.errorMessage
+                    }
+                );
+
+                throw new Exception(removeresult.error.errorMessage);
+            }
+
+            renameEmote_success.Add(
+                new Emotes() { Name = request.targetemotes[0], Rename = request.emoterename }
+            );
+        }
+        catch (Exception ex) { }
+        finally
+        {
+            if (renameEmote_success.Any())
+                response.result +=
+                    $"| Succcessfully rename {request.targetemotes[0]} to {renameEmote_success[0].RenameString()} | ";
+
+            if (renameEmote_failed.Any())
+                response.result += $" | {SevenTVServices.EmoteErrorBuilder(renameEmote_failed)} | ";
+
+            if (renameEmote_fuzzy.Any())
+                response.result +=
+                    $" | Not found the emote(s). Did you mean : {string.Join(" ; ", renameEmote_fuzzy.Select(x => x.ToString()).ToList())} | ";
+
+            if (renameEmote_notFound.Any())
+                response.result +=
+                    $"| Failed to search emotes: {SevenTVServices.EmoteStringBuilder(renameEmote_notFound)} | ";
+        }
+
         response.success = true;
         return response;
     }
 
-    public static async Task<ApiResponse<List<IModifyEmote_EmoteSet_Emotes>>> RemoveEmote(
-        ISevenTvClient client,
-        string emoteid,
-        string emotesetid
-    )
-    {
-        var response = new ApiResponse<List<IModifyEmote_EmoteSet_Emotes>> { success = false };
+    public static async Task<ApiResponse<bool>> CheckPerms(
+        ClientInfo clientinfo,
+        ServiceDependency dependency
+    ) {
+        var response = new ApiResponse<bool>() {success = false};
+        var usereditoraccessres = await GetUserEditorAccess("bassnixbot", dependency);
+        var channel = clientinfo.channel.ToLower();
+        var username = clientinfo.userInfo.userName.ToLower();
 
-        var removeEmote = await client.ModifyEmote.ExecuteAsync(
-            emotesetid,
-            ListItemAction.Remove,
-            emoteid,
-            ""
-        );
-
-        if (removeEmote == null || removeEmote.Data == null)
-        {
-            response.error = UtilsLib.UtilsClient.GetErrorList.Where(x => x.errorCode == "7001").Single();
+        if (!usereditoraccessres.success) {
+            response.error = new Error() {errorMessage = "There was an error while running the command", errorCode = "perm-error"};
+            return response;
+        }
+        
+        if (!usereditoraccessres.result!.Contains(channel) && channel != "bassnixbot") {
+            response.error = new Error() {errorMessage = "Gulp bot dont have the 7tv editor access in this channel", errorCode = "perm-error"};
             return response;
         }
 
-        if (removeEmote.Errors.Count != 0 && removeEmote.Errors[0] != null)
-        {
-            response.error = new Error
-            {
-                errorCode = removeEmote.Errors[0].Code,
-                errorMessage = removeEmote.Errors[0].Message
-            };
+        var channeleditoraccessres = await GetChannelEditors(channel, dependency);
 
+        if (!channeleditoraccessres.success) {
+            response.error = new Error() {errorMessage = "There was an error while running the command", errorCode = "perm-error"};
             return response;
         }
 
-        if (removeEmote.Data == null || removeEmote.Data.EmoteSet == null)
-        {
-            response.error = new Error
-            {
-                errorMessage = "An unexpected error has been occured. Please try again later."
-            };
+        if (!channeleditoraccessres.result!.Contains(username) && username != channel) {
+            response.error = new Error() {errorMessage = "bassni2Pout only 7tv editor can modify the emotes", errorCode = "perm-error"};
             return response;
         }
 
-        response.result = removeEmote.Data.EmoteSet.Emotes.ToList();
         response.success = true;
+        response.result = true;
         return response;
-    }
-
-    private static Error HandleException(System.Exception ex)
-    {
-        var errorlist = UtilsClient.GetErrorList;
-        var errorDetail = errorlist
-            .Where(x => x.errorCode == ex.Message)
-            .SingleOrDefault();
-
-        if (errorDetail != null)
-            return errorDetail;
-
-        // if (!string.IsNullOrEmpty(ex.Message))
-        //     return new Error { errorMessage = ex.Message };
-
-        return new Error
-        {
-            errorMessage = "An unexpected error has been occured. Please try again later.",
-            errorStackTrace = ex.StackTrace
-        };
-    }
-
-    // other app logic here
-    public static void CheckObjectID(
-        List<string> targetemotes,
-        out List<Emotes> idlist,
-        out List<Emotes> querylist
-    )
-    {
-        idlist = new();
-        querylist = new();
-
-        foreach (var emote in targetemotes)
-        {
-            // check for if it's a uri
-            Uri outUri;
-            string possibleid;
-            if (
-                Uri.TryCreate(emote, UriKind.Absolute, out outUri)
-                && (outUri.Scheme == Uri.UriSchemeHttp || outUri.Scheme == Uri.UriSchemeHttps)
-            )
-            {
-                // Do something with your validated Absolute URI...
-                possibleid = outUri.Segments.Last();
-            }
-            else
-            {
-                possibleid = emote;
-            }
-
-            // check if it's a ObjectId
-            ObjectId objectId;
-
-            if (ObjectId.TryParse(possibleid, out objectId))
-            {
-                // Valid ObjectId
-                idlist.Add(new Emotes { Id = objectId.ToString() });
-            }
-            else
-            {
-                // else put it in querylist
-                querylist.Add(new Emotes { Name = emote });
-            }
-        }
-    }
-
-    public static string EmoteStringBuilder(List<Emotes> emotelist)
-    {
-        List<string> outputlist = emotelist.Select(x => x.GetEmoteIdentifier()).ToList();
-        return string.Join(" ", outputlist);
-    }
-
-    public static string EmoteErrorBuilder(List<Emotes> emotelist)
-    {
-        var outputList = emotelist
-            .GroupBy(x => x.errorMessage)
-            .Select(emotegroup =>
-                $"{emotegroup.Key} ( {string.Join(" ", emotegroup.Select(x => x.GetEmoteIdentifier()))} )"
-            )
-            .ToList();
-
-        return string.Join(" \\ ", outputList);
     }
 }
