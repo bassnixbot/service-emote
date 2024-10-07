@@ -5,8 +5,6 @@ using WatchDog.src.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables("twitch_");
-var test = builder.Configuration.GetConnectionString("PostgresEmotes");
-Console.WriteLine(test);
 
 builder.Services.AddWatchDogServices(opt =>
 {
