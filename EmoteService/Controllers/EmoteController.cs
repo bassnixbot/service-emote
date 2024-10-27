@@ -70,7 +70,7 @@ public class EmoteController : ControllerBase
     {
         var response = new ApiResponse<string> { success = false };
 
-        var apiresponse = await EmoteServices.GetChannelEditors(user, new ServiceDependency() {client = _client, mapper = _mapper});
+        var apiresponse = await EmoteServices.GetUserEditorAccess(user, new ServiceDependency() {client = _client, mapper = _mapper});
 
         if (!apiresponse.success) {
             return StatusCode(StatusCodes.Status500InternalServerError, apiresponse);
