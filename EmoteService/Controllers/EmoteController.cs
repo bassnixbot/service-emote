@@ -84,11 +84,11 @@ public class EmoteController : ControllerBase
     {
         var response = new ApiResponse<string> { success = false };
 
-        var checkperms = await EmoteServices.CheckPerms(request.clientinfo, new ServiceDependency() {client = _client, mapper = _mapper});
-
-        if (!checkperms.success) {
-            return StatusCode(StatusCodes.Status500InternalServerError, checkperms);
-        }         
+        // var checkperms = await EmoteServices.CheckPerms(request.clientinfo, new ServiceDependency() {client = _client, mapper = _mapper});
+        //
+        // if (!checkperms.success) {
+        //     return StatusCode(StatusCodes.Status500InternalServerError, checkperms);
+        // }         
 
         var apiresponse = await EmoteServices.AddEmoteinEmoteSet(request, new ServiceDependency() {client = _client, mapper = _mapper});
 
