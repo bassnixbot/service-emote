@@ -10,6 +10,7 @@ public class ModifyEmoteinEmoteSetRequest
     public List<string> targetemotes { get; set; } = new();
     public bool defaultname { get; set; } = false;
     public bool iscaseinsensitive { get; set; } = false;
+    public string targetchannel {get; set;} = "";
     public ClientInfo clientinfo {get; set;}
 }
 

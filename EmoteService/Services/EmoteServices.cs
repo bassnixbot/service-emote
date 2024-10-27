@@ -407,7 +407,7 @@ public static class EmoteServices
         var targetUserId = "";
         List<Emotes> channelemotes = new();
         {
-            var getUserId = await SevenTVServices.queryUserId(dependency.client, request.clientinfo.channel);
+            var getUserId = await SevenTVServices.queryUserId(dependency.client, request.targetchannel);
 
             if (!getUserId.success)
                 return getUserId;
@@ -516,7 +516,7 @@ public static class EmoteServices
         );
 
         // get targetchannel user id
-        var getUserId = await SevenTVServices.queryUserId(dependency.client, request.clientinfo.channel);
+        var getUserId = await SevenTVServices.queryUserId(dependency.client, request.targetchannel);
 
         if (!getUserId.success)
             return getUserId;
@@ -680,7 +680,7 @@ public static class EmoteServices
         // }
 
         // get the channel's emote
-        var getUserId = await SevenTVServices.queryUserId(dependency.client, request.clientinfo.channel);
+        var getUserId = await SevenTVServices.queryUserId(dependency.client, request.targetchannel);
 
         if (!getUserId.success && getUserId.result == null)
             return getUserId;
