@@ -53,7 +53,7 @@ query GetFullUserDetails($userid: ObjectID!) {
         }
       }
     }
-    connections(type: TWITCH) {
+    connections {
       id
       platform
       username

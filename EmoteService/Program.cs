@@ -30,10 +30,11 @@ builder
     .ConfigureHttpClient(client =>
     {
         client.BaseAddress = new Uri(builder.Configuration.GetConnectionString("SevenTVURI"));
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-            "Bearer",
-            builder.Configuration.GetConnectionString("SevenTVToken")
-        );
+        // client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+        //     "Bearer",
+        //     builder.Configuration.GetConnectionString("SevenTVToken")
+        // );
+        client.DefaultRequestHeaders.Add("Cookie", builder.Configuration.GetConnectionString("SevenTVToken"));
     });
 
 var app = builder.Build();

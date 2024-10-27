@@ -38,8 +38,14 @@ public static class SevenTVServices
                     if (result.Data.Users[0].Id == ObjectId.Empty.ToString())
                         throw new Exception("7002");
 
+                    var user = result.Data.Users.Where(x => x.Username == userquery).OrderBy(x => x.Created_at).FirstOrDefault();
+                    
+                    if (user == null) {
+                        throw new Exception("7001");
+                    }
+                    
                     cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
-                    cacheparam.value = result.Data.Users[0].Id;
+                    cacheparam.value = user.Id;
                 }
             );
 
@@ -89,12 +95,10 @@ public static class SevenTVServices
 
                         // we get the active emote sets based on the twitch connection
                         // it is harcoded to the first item in the array
-                        var userconnection = getUserFullInfo.Data.User.Connections;
+                        var userconnection = getUserFullInfo.Data.User.Connections.Where(x => x.Platform.ToString().ToLower() == "twitch").FirstOrDefault();
 
                         if (
                             userconnection == null
-                            || userconnection.Count() == 0
-                            || userconnection[0] == null
                         )
                         {
                             throw new Exception("7003");
@@ -102,7 +106,7 @@ public static class SevenTVServices
 
                         var emotelist = getUserFullInfo
                             .Data.User.Emote_sets.Where(x =>
-                                x.Id == userconnection[0]!.Emote_set_id
+                                x.Id == userconnection!.Emote_set_id
                             )
                             .Select(x => x.Emotes)
                             .Single()
@@ -238,6 +242,7 @@ public static class SevenTVServices
                 async (cacheparam) =>
                 {
                     var userDetail = await client.GetFullUserDetails.ExecuteAsync(userid);
+                    Console.WriteLine(userDetail);
 
                     if (userDetail == null || userDetail.Data == null)
                         throw new Exception("7002");
@@ -324,7 +329,7 @@ public static class SevenTVServices
                     async (cacheparam) =>
                     {
                         cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
-                        var queryEmotes = await client.QueryEmotes.ExecuteAsync(emotename, 300);
+                        var queryEmotes = await client.QueryEmotes.ExecuteAsync(emotename, 50);
 
                         if (queryEmotes == null)
                             throw new Exception("7001");
@@ -482,7 +487,8 @@ public static class SevenTVServices
     public static async Task<ApiResponse<List<IModifyEmote_EmoteSet_Emotes>>> RemoveEmote(
         ISevenTvClient client,
         string emoteid,
-        string emotesetid
+        string emotesetid,
+        string emotename
     )
     {
         var response = new ApiResponse<List<IModifyEmote_EmoteSet_Emotes>> { success = false };
@@ -491,7 +497,7 @@ public static class SevenTVServices
             emotesetid,
             ListItemAction.Remove,
             emoteid,
-            ""
+            emotename
         );
 
         if (removeEmote == null || removeEmote.Data == null)

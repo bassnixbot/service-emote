@@ -433,12 +433,12 @@ public static class EmoteServices
         {
             foreach (var emote in emotes_toAdd)
             {
+                // by default, we just put the  emote name as rename parameter
+                emote.Rename = emote.Name;
+                
                 if (!string.IsNullOrEmpty(request.emoterename))
                     emote.Rename = request.emoterename;
-
-                if (request.defaultname)
-                    emote.Rename = "";
-
+                
                 var addresult = await SevenTVServices.AddEmote(
                     dependency.client,
                     emote.Id!,
@@ -621,7 +621,8 @@ public static class EmoteServices
                 var removeresult = await SevenTVServices.RemoveEmote(
                     dependency.client,
                     emote.Id,
-                    getEmoteSetId.result
+                    getEmoteSetId.result,
+                    emote.Name
                 );
 
                 if (!removeresult.success)
@@ -756,7 +757,8 @@ public static class EmoteServices
             var removeresult = await SevenTVServices.RemoveEmote(
                 dependency.client,
                 searchEmote!.Id!,
-                getEmoteSetId.result!
+                getEmoteSetId.result!,
+                searchEmote!.Name!
             );
 
             if (!removeresult.success)
