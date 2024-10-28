@@ -21,7 +21,7 @@ public static class SevenTVServices
                 rediskey,
                 async (cacheparam) =>
                 {
-                    var result = await client.QueryUserId.ExecuteAsync(userquery);
+                    var result = await client.QueryUserId.ExecuteAsync(userquery, 1, 30);
 
                     if (result == null)
                         throw new Exception("7001");

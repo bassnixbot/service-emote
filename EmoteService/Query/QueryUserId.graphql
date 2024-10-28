@@ -1,5 +1,5 @@
-query QueryUserId($userid: String!) {
-    users(query: $userid) {
+query QueryUserId($userid: String!, $page: Int, $limit: Int) {
+    users(query: $userid, page: $page, limit: $limit) {
         id
         username
         created_at
