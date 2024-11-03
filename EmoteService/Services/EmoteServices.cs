@@ -282,7 +282,28 @@ public static class EmoteServices
         List<Emotes> emotes_failedSearch = new();
 
         // added id directly into the list since we need to use the id during add query
-        emotes_toAdd.AddRange(idlist);
+        
+        if (idlist.Count() != 0)
+        {
+            foreach (var emoteid in idlist)
+            {
+                var getEmote = await SevenTVServices.getEmote(
+                    dependency.client,
+                    emoteid.Id.ToString()
+                );
+
+                if (!getEmote.success)
+                {
+                    emoteid.errorMessage = getEmote!.error!.errorMessage;
+                    emotes_failedSearch.Add(emoteid);
+                    continue;
+                }
+
+                var emoteDetails = dependency.mapper.Map<Emotes>(getEmote.result);
+
+                emotes_toAdd.Add(emoteDetails);
+            }
+        }
 
         // search the emotes
         if (request.source != null || request.owner != null)
