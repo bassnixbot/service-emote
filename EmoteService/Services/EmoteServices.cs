@@ -22,7 +22,8 @@ public static class EmoteServices
             return response;
         }
 
-        SevenTVServices.CheckObjectID(
+        // check if the request is made using emote ids or emote names
+        SevenTVServices.CheckULID(
             request.targetemotes,
             out List<Emotes> idlist,
             out List<Emotes> querylist
@@ -146,7 +147,6 @@ public static class EmoteServices
         return response;
     }
 
-    [HttpGet("searchemotes")]
     public static async Task<ApiResponse<List<string>>> SearchEmotes(
         string channel,
         string? query,
@@ -248,7 +248,6 @@ public static class EmoteServices
         return getUserEditorAccess;
     }
 
-    [HttpPost("add")]
     public static async Task<ApiResponse<string>> AddEmoteinEmoteSet(
         ModifyEmoteinEmoteSetRequest request,
         ServiceDependency dependency
@@ -272,7 +271,7 @@ public static class EmoteServices
         }
 
         // see if the emotes provided already in objectId format
-        SevenTVServices.CheckObjectID(
+        SevenTVServices.CheckULID(
             request.targetemotes,
             out List<Emotes> idlist,
             out List<Emotes> querylist
@@ -509,7 +508,7 @@ public static class EmoteServices
             return response;
         }
 
-        SevenTVServices.CheckObjectID(
+        SevenTVServices.CheckULID(
             request.targetemotes,
             out List<Emotes> idlist,
             out List<Emotes> querylist
@@ -664,7 +663,7 @@ public static class EmoteServices
     {
         var response = new ApiResponse<string>() { success = false };
 
-        SevenTVServices.CheckObjectID(
+        SevenTVServices.CheckULID(
             request.targetemotes,
             out List<Emotes> idlist,
             out List<Emotes> querylist

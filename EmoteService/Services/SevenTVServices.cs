@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using EmoteService.GraphQl;
 using EmoteService.Models;
 using MongoDB.Bson;
@@ -7,6 +8,8 @@ namespace EmoteService.Services;
 
 public static class SevenTVServices
 {
+    private static Regex UlidRegex = new Regex("^[0-9A-HJKMNP-TV-Z]{26}$", RegexOptions.Compiled);
+
     public static async Task<ApiResponse<string>> queryUserId(
         ISevenTvClient client,
         string userquery
@@ -38,12 +41,14 @@ public static class SevenTVServices
                     if (result.Data.Users[0].Id == ObjectId.Empty.ToString())
                         throw new Exception("7002");
 
-                    var user = result.Data.Users.Where(x => x.Username == userquery).OrderBy(x => x.Created_at).FirstOrDefault();
-                    
-                    if (user == null) {
+                    var user = result.Data.Users.Where(x => x.Username == userquery).OrderBy(x => x.Created_at)
+                        .FirstOrDefault();
+
+                    if (user == null)
+                    {
                         throw new Exception("7001");
                     }
-                    
+
                     cacheparam.expiry = TimeSpan.FromMinutes(Config.redis.longTimeout);
                     cacheparam.value = user.Id;
                 }
@@ -95,7 +100,8 @@ public static class SevenTVServices
 
                         // we get the active emote sets based on the twitch connection
                         // it is harcoded to the first item in the array
-                        var userconnection = getUserFullInfo.Data.User.Connections.Where(x => x.Platform.ToString().ToLower() == "twitch").FirstOrDefault();
+                        var userconnection = getUserFullInfo.Data.User.Connections
+                            .Where(x => x.Platform.ToString().ToLower() == "twitch").FirstOrDefault();
 
                         if (
                             userconnection == null
@@ -552,7 +558,7 @@ public static class SevenTVServices
     }
 
     // other app logic here
-    public static void CheckObjectID(
+    public static void CheckULID(
         List<string> targetemotes,
         out List<Emotes> idlist,
         out List<Emotes> querylist
@@ -579,18 +585,27 @@ public static class SevenTVServices
                 possibleid = emote;
             }
 
-            // check if it's a ObjectId
-            ObjectId objectId;
+            // check if it in ULID format
+            {
+                bool IsUlidFormat(string input)
+                {
+                    if (string.IsNullOrEmpty(input) || input.Length != 26)
+                    {
+                        return false;
+                    }
 
-            if (ObjectId.TryParse(possibleid, out objectId))
-            {
-                // Valid ObjectId
-                idlist.Add(new Emotes { Id = objectId.ToString() });
-            }
-            else
-            {
-                // else put it in querylist
-                querylist.Add(new Emotes { Name = emote });
+                    return UlidRegex.IsMatch(input);
+                }
+
+                if (IsUlidFormat(possibleid))
+                {
+                    idlist.Add(new Emotes { Id = possibleid });
+                }
+                else
+                {
+                    // else put it in querylist
+                    querylist.Add(new Emotes { Name = emote });
+                }
             }
         }
     }
