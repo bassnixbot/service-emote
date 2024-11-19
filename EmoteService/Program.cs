@@ -4,7 +4,6 @@ using WatchDog;
 using WatchDog.src.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddEnvironmentVariables("twitch_");
 
 builder.Services.AddWatchDogServices(opt =>
 {

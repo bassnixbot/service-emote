@@ -27,6 +27,9 @@ public class EmoteController : ControllerBase
     public async Task<ActionResult> EmotePreview(PreviewRequest request)
     {
         var response = new ApiResponse<string> { success = false };
+        if (!string.IsNullOrEmpty(request.source)) {
+            request.source = request.source.ToLower();
+        }
 
         var apiresponse = await EmoteServices.EmotePreview(request, new ServiceDependency() {client = _client, mapper = _mapper});
 
@@ -83,6 +86,9 @@ public class EmoteController : ControllerBase
     public async Task<ActionResult> AddEmoteinEmoteSet(ModifyEmoteinEmoteSetRequest request)
     {
         var response = new ApiResponse<string> { success = false };
+        if (!string.IsNullOrEmpty(request.source)) {
+            request.source = request.source.ToLower();
+        }
 
         // var checkperms = await EmoteServices.CheckPerms(request.clientinfo, new ServiceDependency() {client = _client, mapper = _mapper});
         //
@@ -103,6 +109,9 @@ public class EmoteController : ControllerBase
     public async Task<ActionResult> RemoveEmoteFromEmoteSet(ModifyEmoteinEmoteSetRequest request)
     {
         var response = new ApiResponse<string> { success = false };
+        if (!string.IsNullOrEmpty(request.source)) {
+            request.source = request.source.ToLower();
+        }
         
         var checkperms = await EmoteServices.CheckPerms(request.clientinfo, new ServiceDependency() {client = _client, mapper = _mapper});
 
@@ -123,6 +132,9 @@ public class EmoteController : ControllerBase
     public async Task<ActionResult> RenameEmoteFromEmoteSet(ModifyEmoteinEmoteSetRequest request)
     {
         var response = new ApiResponse<string> { success = false };
+        if (!string.IsNullOrEmpty(request.source)) {
+            request.source = request.source.ToLower();
+        }
         
         var checkperms = await EmoteServices.CheckPerms(request.clientinfo, new ServiceDependency() {client = _client, mapper = _mapper});
 
